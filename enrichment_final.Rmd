@@ -1,0 +1,627 @@
+---
+title: "Enrichment_final_v0.1"
+author: "Sami Saarenpää"
+date: "15/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Loading packages
+library(Matrix)
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+library(Seurat)
+library(patchwork)
+library(STutility)
+library(Rcpp)
+library(harmony)
+library(data.table)
+library(corrplot)
+library(sjmisc)
+library(multcompView)
+library(Hmisc)
+library(vegan)
+library(grid)
+library(gridExtra)
+library(psych)
+library(prabclus)
+library(tidyverse)
+library(cowplot)  
+library(RColorBrewer)
+```
+
+
+#Infotable & data
+```{r}
+
+samples <- list.files(path = "~/data/tsv-files/", pattern = ".tsv", recursive = T,full.names = T)
+samples <- samples[1:12]
+spotfiles <- list.files(path = "~/spotfiles//", recursive = T,pattern = ".tsv", full.names = T)
+spotfiles<- spotfiles[1:12]
+imgs <- list.files(path = "~/images/", pattern = ".jpg", recursive = T,full.names = T)
+imgs <- imgs[1:12]
+leaf <- c("L1", "L2", "L3","L1", "L2", "L3","L1", "L2", "L3","L1", "L2", "L3")
+slide <- c("191028-74", "191028-74", "191028-76", "191028-74", "191028-74", "191028-76","191028-74", "191028-76", "191028-76", "191028-74","191028-74", "191028-76")
+section <- c("L1B1_16S", "L2C2_16S", "L3D1_16S", "L1C1_ITS", "L2D2_ITS", "L3A2_ITS", "L1A2_p10", "L2B1_p10", "L3C2_p10", "L1A1_p100", "L2B2_p100", "L3C1_p100")
+pT <- c("0", "0","0", "0","0", "0", "10", "10", "10", "100", "100", "100")
+Probes <- c("16S", "16S", "16S","ITS", "ITS", "ITS","104545", "104545","104545","pT", "pT","pT")
+scaleVisium <- c(1,1,1,1,1,1,1,1, 1,1,1,1)
+
+infoTable <- data.frame(samples, 
+                        spotfiles, 
+                        imgs, 
+                        leaf,
+                        slide,
+                        scaleVisium, 
+                        section,
+                        pT,
+                        Probes,
+                        stringsAsFactors = F)
+
+enrichment <- InputFromTable(infotable = infoTable, 
+                               transpose = F,
+                               platform = "Visium")
+```
+
+#Arabidopsis correlation plots
+```{r, fig.height=15, fig.width=15}
+
+#Raw counts
+enrichment.genes.list <- c()
+for (i in 1:length(section)){
+  enrichment.genes.list[[i]] <- sort(rowSums(subset.enrichment.section[[i]]@assays$RNA@counts), decreasing = T)
+}
+
+enrichment.df <- t(do.call(rbind.data.frame, enrichment.genes.list))
+colnames(enrichment.df) <- c("100 % 16S", "100 % 16S", "100 % 16S", "100 % ITS/18S", "100 % ITS/18S", "100 % ITS/18S", "10 % poly-T, 45 % 16S, 45 % ITS/18S", "10 % poly-T, 45 % 16S, 45 % ITS/18S", "10 % poly-T, 45 % 16S, 45 % ITS/18S", "100 % poly-T", "100 % poly-T", "100 % poly-T")
+rownames(enrichment.df) <- rownames(enrichment.genes.list[[1]])
+enrichment.df <- as.data.frame(enrichment.df)
+
+#log transformed
+enrichment.subset.list.log <- c()
+for (i in 1:length(section)){
+  enrichment.subset.list.log[[i]]<-log10(rowSums(subset.enrichment.section[[i]]@assays$RNA@counts)+1)
+}
+
+enrichment.log.df <- t(do.call(rbind.data.frame, enrichment.subset.list.log))
+colnames(enrichment.log.df) <- c("100 % 16S", "100 % 16S", "100 % 16S", "100 % ITS/18S", "100 % ITS/18S", "100 % ITS/18S", "10 % poly-T, 45 % 16S, 45 % ITS/18S", "10 % poly-T, 45 % 16S, 45 % ITS/18S", "10 % poly-T, 45 % 16S, 45 % ITS/18S", "100 % poly-T", "100 % poly-T", "100 % poly-T")
+rownames(enrichment.log.df) <- rownames(enrichment.subset.list.log[[1]])
+enrichment.log.df <- as.data.frame(enrichment.log.df)
+
+pairwise_cor <- rcorr(as.matrix(enrichment.df))
+pairwise_cor2 <- rcorr(as.matrix(enrichment.log.df))
+
+
+  #Leaf 1
+  
+  qqplot_filename <- paste("~/plant_corr/211013_L1_corr_full_all_raw_counts.pdf")
+  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor$r[c(1,4,7,10),c(1,4,7,10)], lower.col = "black", number.cex = 1, order="hclust", 
+                 p.mat = pairwise_cor$P[c(1,4,7,10),c(1,4,7,10)], sig.level = c(.001, .01, .05), insig = "label_sig", pch.col = "white", upper.col = brewer.pal(n = 5, name = 'PRGn'))
+  dev.off()
+  
+  qqplot_filename <- paste("~/plant_corr/211013_L1_corr_full_all_log10_counts.pdf")
+  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(1,4,7,10),c(1,4,7,10)], lower.col = "black", number.cex = 1, order="hclust", 
+                 p.mat = pairwise_cor2$P[c(1,4,7,10),c(1,4,7,10)], sig.level = c(.001, .01, .05), insig = "label_sig", pch.col = "white", upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  dev.off()
+  
+  #Leaf 2
+  
+  qqplot_filename <- paste("~/plant_corr/211013_L2_corr_full_all_raw_counts.pdf")
+  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor$r[c(2,5,8,11),c(2,5,8,11)], lower.col = "black", number.cex = 1, order="hclust", 
+                 p.mat = pairwise_cor$P[c(2,5,8,11),c(2,5,8,11)], sig.level = c(.001, .01, .05), insig = "label_sig", pch.col = "white", upper.col = brewer.pal(n = 5, name = 'PRGn'))
+  dev.off()
+
+  
+  qqplot_filename <- paste("~/plant_corr/211013_L2_corr_full_all_log10_counts.pdf")
+  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(2,5,8,11),c(2,5,8,11)], lower.col = "black", number.cex = 1, order="hclust", 
+                 p.mat = pairwise_cor2$P[c(2,5,8,11),c(2,5,8,11)], sig.level = c(.001, .01, .05), insig = "label_sig", pch.col = "white", upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  dev.off()
+  
+  #Leaf 3
+  
+  qqplot_filename <- paste("~/plant_corr/211013_L3_corrfull_all_raw_counts.pdf")
+  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor$r[c(3,6,9,12),c(3,6,9,12)], lower.col = "black", number.cex = 1, order="hclust", 
+                 p.mat = pairwise_cor$P[c(3,6,9,12),c(3,6,9,12)], sig.level = c(.001, .01, .05), insig = "label_sig", pch.col = "white", upper.col = brewer.pal(n = 5, name = 'PRGn'))
+  dev.off()
+  
+  qqplot_filename <- paste("~/plant_corr/211013_L3_corr_full_all_log10_counts.pdf")
+  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(3,6,9,12),c(3,6,9,12)], lower.col = "black", number.cex = 1, order="hclust", 
+                 p.mat = pairwise_cor2$P[c(3,6,9,12),c(3,6,9,12)], sig.level = c(.001, .01, .05), insig = "label_sig", pch.col = "white", upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  dev.off()
+  
+
+```
+#Load microbial data
+```{r, fig.height=10, fig.width=10}
+
+microbes <- list.files(path = "~/enrichment_data/", pattern = ".txt", recursive = T,full.names = T)
+microbes <- microbes[1:12]
+
+microbes.list<- c()
+fungi.list <- c()
+bact.list <- c()
+
+for (l in 1:length(microbes)){
+  microbes.list[[l]] <- read.csv(microbes[[l]], header=FALSE, row.names=NULL, sep=";")
+  microbes.list[[l]]$Leaf <- as.factor(leaf[[l]])
+  microbes.list[[l]]$pT <- as.factor(pT[[l]])
+  colnames(microbes.list[[l]]) <- c("Counts", "Super_kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species", "Leaf", "pT")
+  microbes.list[[l]]$Probes <- as.factor(Probes[[l]])
+  microbes.list[[l]]$section <- as.factor(section[[l]])
+  microbes.list[[l]]$Log10 <- log10(microbes.list[[l]]$Counts + 1)
+  microbes.list[[l]] <-  microbes.list[[l]][!microbes.list[[l]]$Phylum=="Streptophyta",]
+  microbes.list[[l]]$Speciespath <- paste(microbes.list[[l]]$Super_kingdom, microbes.list[[l]]$Phylum, microbes.list[[l]]$Class, microbes.list[[l]]$Order, microbes.list[[l]]$Family, microbes.list[[l]]$Genus,microbes.list[[l]]$Species)
+  fungi.list[[l]] <- microbes.list[[l]][grep(x = microbes.list[[l]]$Phylum, pattern = "myc"),]
+  fungi.list[[l]] <- fungi.list[[l]][(fungi.list[[l]]$Super_kingdom=="Eukaryota"),]
+  bact.list[[l]] <- microbes.list[[l]][(microbes.list[[l]]$Super_kingdom=="Bacteria" | microbes.list[[l]]$Super_kingdom=="Archaea"),]
+  rownames(fungi.list[[l]]) <- fungi.list[[l]]$Speciespath
+  rownames(bact.list[[l]]) <- bact.list[[l]]$Speciespath
+}
+
+fungi_df <- do.call("rbind", list(fungi.list[[1]], fungi.list[[2]], fungi.list[[3]] , fungi.list[[4]], fungi.list[[5]], fungi.list[[6]], fungi.list[[7]], fungi.list[[8]], fungi.list[[9]], fungi.list[[10]], fungi.list[[11]], fungi.list[[12]]))
+bact_df <- do.call("rbind", list(bact.list[[1]], bact.list[[2]], bact.list[[3]] , bact.list[[4]], bact.list[[5]], bact.list[[6]], bact.list[[7]], bact.list[[8]], bact.list[[9]], bact.list[[10]], bact.list[[11]], bact.list[[12]]))
+
+
+
+```
+
+#Enrichment analysis
+```{r fig.height=15, fig.width=15, message=TRUE, warning=TRUE}
+
+enrichment_analysis <- function(data = bact_df, taxa_of_interest = "Fungi", num_of_top_taxa_qqplot = 1660, dir_output = "~/enrichment-OMNI9_10/"){
+  
+  if (taxa_of_interest == "Fungi"){
+    data = fungi_df
+  } else if (taxa_of_interest == "Bacteria"){
+    data = bact_df
+  } else{
+    stop()
+  }
+##change this
+  full_enrichment <- data
+  
+  
+  ### create a matrix of the three Arrays, combining all samples
+  summary_df <- data.frame("Counts"=NULL, "Taxa"=NULL, "Rank"=NULL, "Probes"=NULL, "Leaf"=NULL)
+  for (i in c(2:7)){
+    for (Probes in unique(full_enrichment$Probes)){
+      for (Leaf in unique(full_enrichment$Leaf)){
+        for (Taxa in unique(full_enrichment[full_enrichment$Probes == Probes & full_enrichment$Leaf == Leaf,i])){
+          if (str_contains(x = Taxa, pattern = "unclassified")){
+            next() # filter unclassified reads
+          }
+          temp_data <- full_enrichment[full_enrichment$Probes == Probes & full_enrichment$Leaf == Leaf,]
+          Counts <- sum(temp_data$Counts[temp_data[,i]==Taxa])
+          Rank <- colnames(temp_data)[i]
+          temp_df <- cbind(Counts, Taxa, Rank, Probes, Leaf)
+          summary_df <- rbind(summary_df, temp_df) 
+        }
+      }
+    }
+  }
+  
+  summary_df$Counts <- as.numeric(as.character(summary_df$Counts))
+  
+  ## Convert data frame for subsequent diversity / correlation analyses
+  
+  summary_df_genus <- summary_df[summary_df$Rank=="Genus",]
+  
+  genera_sample1 <- paste(as.character(unique(summary_df_genus$Taxa[summary_df_genus$Leaf=="L1"])), "L1")
+  genera_sample2 <- paste(as.character(unique(summary_df_genus$Taxa[summary_df_genus$Leaf=="L2"])), "L2")
+  genera_sample3 <- paste(as.character(unique(summary_df_genus$Taxa[summary_df_genus$Leaf=="L3"])), "L3")
+  
+  # create abundance matrix for all treatments, pooled samples
+  abundance_matrix <- as.data.frame(matrix(nrow = length(c(genera_sample1, genera_sample2, genera_sample3)), ncol = 4))
+  colnames(abundance_matrix) <- unique(summary_df_genus$Probes)
+  rownames(abundance_matrix) <- (c(genera_sample1, genera_sample2, genera_sample3))
+  
+  
+  for (Leaf in unique(summary_df_genus$Leaf)){
+    for (Probes in unique(summary_df_genus$Probes)){
+      for (Taxa in unique(summary_df_genus$Taxa[summary_df_genus$Leaf==Leaf])){
+        count <- sum(summary_df_genus$Counts[summary_df_genus$Taxa==Taxa & summary_df_genus$Probes==Probes &
+                                               summary_df_genus$Leaf==Leaf ])
+        
+        abundance_matrix[rownames(abundance_matrix)==paste(Taxa,Leaf), colnames(abundance_matrix)==Probes] <- count
+      }
+    }
+  }
+  write.table(abundance_matrix, "~/abundance_matrix_rawCounts.csv")
+
+      # create abundance matrix for all treatments, each sample separately  (as a column)
+  summary_df_genus$Probes_by_sample <- paste(summary_df_genus$Probes, summary_df_genus$Leaf)
+  
+  abundance_matrix_Probes_by_treat <- as.data.frame(matrix(nrow = length(unique(summary_df_genus$Taxa)), ncol = length(unique(summary_df_genus$Probes_by_sample))))
+  colnames(abundance_matrix_Probes_by_treat) <- unique(summary_df_genus$Probes_by_sample)
+  rownames(abundance_matrix_Probes_by_treat) <- as.character(unique(summary_df_genus$Taxa))
+  
+  for (Probes_by_sample in unique(summary_df_genus$Probes_by_sample)){
+    for (Taxa in as.character(unique(summary_df_genus$Taxa))){
+      count <- sum(summary_df_genus$Counts[summary_df_genus$Taxa==Taxa 
+                                           & summary_df_genus$Probes_by_sample==Probes_by_sample ])
+      
+      abundance_matrix_Probes_by_treat[rownames(abundance_matrix_Probes_by_treat)==paste(Taxa), colnames(abundance_matrix_Probes_by_treat)==Probes_by_sample] <- count
+    }
+  }
+
+  # alpha diversity
+  
+  sample1_rows <- grepl(rownames(abundance_matrix), pattern = "L1")
+  sample2_rows <- grepl(rownames(abundance_matrix), pattern = "L2")
+  sample3_rows <- grepl(rownames(abundance_matrix), pattern = "L3")
+  
+  sample1_shannon <- diversity(t(abundance_matrix[sample1_rows,]), index = "shannon")
+  sample2_shannon <- diversity(t(abundance_matrix[sample2_rows,]), index = "shannon")
+  sample3_shannon <- diversity(t(abundance_matrix[sample3_rows,]), index = "shannon")
+  all_samples_shannon <- diversity(t(abundance_matrix_Probes_by_treat), index = "shannon")
+  
+  all_samples_shannon_df <- as.data.frame(all_samples_shannon)
+  row_names_split <- unlist(strsplit(x = rownames(all_samples_shannon_df), split = " "))
+  all_samples_shannon_df$Probes <- row_names_split[seq(from = 1, to = length(row_names_split), by = 2)]
+  all_samples_shannon_df$Leaf <- row_names_split[seq(from = 2, to = length(row_names_split), by = 2)]
+  
+  colnames(all_samples_shannon_df) <- c("shannon","Probes","Leaf")
+  
+  qqplot_filename <- paste(taxa_of_interest, "_shannon_by_Probes_greater_than_10_reads.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  plot <- ggplot(data = all_samples_shannon_df, aes(x = Probes, y = shannon, colour = Leaf))+
+    geom_point(size = 3) +
+    scale_color_manual(values = c("#7fc97f", "#beaed4",  "#fdc086")) + 
+    theme_classic()
+  print(plot)
+  dev.off()
+  
+  
+  #beta diversity: Bray Curtis
+  
+  sample1_bray <- vegdist(x = t(abundance_matrix[sample1_rows,]), method = "bray")
+  sample2_bray <- vegdist(x = t(abundance_matrix[sample2_rows,]), method = "bray")
+  sample3_bray <- vegdist(x = t(abundance_matrix[sample3_rows,]), method = "bray")
+  all_samples_bray <- vegdist(x = t(abundance_matrix_Probes_by_treat), index = "bray")
+  all_samples_eucl <- dist(x = t(abundance_matrix_Probes_by_treat), method = "euclidean")
+  
+  heat_color <- colorRampPalette(c("red", "lightyellow"), space = "rgb")(100)
+
+  #plot
+  #Sample1
+  Probess <- c("16S", "104545", "ITS", "pT")
+  Probes_color <- c("#ca0020", "#1f78b4", "#238b45", "#969696")
+  Probes_color_df <- data.frame(Probess, Probes_color)
+  
+  final_color_vec <- as.character(Probes_color_df$Probes_color[match(colnames(as.matrix(sample1_bray)), Probes_color_df$Probess)])
+  
+  qqplot_filename <- paste(taxa_of_interest, "_Sample1_bray_greater_than_10_reads.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  plot <- gplots::heatmap.2(as.matrix(sample1_bray), trace = 'none', 
+                            RowSideColors = final_color_vec, ColSideColors = final_color_vec, labRow = "", labCol = "")
+  print(plot)
+  dev.off()
+  
+  Probes_col_names <- colnames(as.matrix(sample1_bray))
+  annot <- data.frame(Probes = Probes_col_names)
+  rownames(annot) <- colnames(as.matrix(sample1_bray))
+  
+  final_color_vec_pheat <- list(Probes = c("pT" = "#969696", "104545"="#1f78b4", "16S"="#ca0020", "ITS"="#238b45" ))
+  
+  qqplot_filename <- paste(taxa_of_interest, "_Sample1_samples_bray_greater_than_10_reads_pheatmap.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  plot <- pheatmap::pheatmap(as.matrix(sample1_bray), color = heat_color, 
+                             annotation_col = annot, annotation_row = annot, 
+                             show_colnames = F, show_rownames = F, annotation_colors = final_color_vec_pheat)
+  print(plot)
+  dev.off()
+  
+ 
+  
+  #Sample2
+  final_color_vec <- as.character(Probes_color_df$Probes_color[match(colnames(as.matrix(sample2_bray)), Probes_color_df$Probess)])
+  
+  qqplot_filename <- paste(taxa_of_interest, "_sample2_bray_greater_than_10_reads.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  plot <- gplots::heatmap.2(as.matrix(sample2_bray), trace = 'none', 
+                            RowSideColors = final_color_vec, ColSideColors = final_color_vec, labRow = "", labCol = "")
+  print(plot)
+  dev.off()
+  
+  Probes_col_names <- colnames(as.matrix(sample2_bray))
+  annot <- data.frame(Probes = Probes_col_names)
+  rownames(annot) <- colnames(as.matrix(sample2_bray))
+  
+  final_color_vec_pheat <- list(Probes = c("pT" = "#969696", "104545"="#1f78b4", "16S"="#ca0020", "ITS"="#238b45"))
+  
+  qqplot_filename <- paste(taxa_of_interest, "_sample2_samples_bray_greater_than_10_reads_pheatmap.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  plot <- pheatmap::pheatmap(as.matrix(sample2_bray), color = heat_color, 
+                             annotation_col = annot, annotation_row = annot, 
+                             show_colnames = F, show_rownames = F, annotation_colors = final_color_vec_pheat)
+  print(plot)
+  dev.off()
+  
+  #Sample 3
+  final_color_vec <- as.character(Probes_color_df$Probes_color[match(colnames(as.matrix(sample3_bray)), Probes_color_df$Probess)])
+  
+  qqplot_filename <- paste(taxa_of_interest, "_sample3_bray_greater_than_10_reads.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  plot <- gplots::heatmap.2(as.matrix(sample3_bray), trace = 'none', 
+                            RowSideColors = final_color_vec, ColSideColors = final_color_vec, labRow = "", labCol = "")
+  print(plot)
+  dev.off()
+  
+  Probes_col_names <- colnames(as.matrix(sample3_bray))
+  annot <- data.frame(Probes = Probes_col_names)
+  rownames(annot) <- colnames(as.matrix(sample3_bray))
+  
+  final_color_vec_pheat <- list(Probes = c("pT" = "#969696", "104545"="#1f78b4", "16S"="#ca0020", "ITS"="#238b45" ))
+  
+  qqplot_filename <- paste(taxa_of_interest, "_sample3_samples_bray_greater_than_10_reads_pheatmap.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  plot <- pheatmap::pheatmap(as.matrix(sample3_bray), color = heat_color, 
+                             annotation_col = annot, annotation_row = annot, 
+                             show_colnames = F, show_rownames = F, annotation_colors = final_color_vec_pheat)
+  print(plot)
+  dev.off()
+  
+  #All samples
+  qqplot_filename <- paste(taxa_of_interest, "_all_samples_bray_greater_than_10_reads.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  plot <- gplots::heatmap.2(as.matrix(all_samples_bray), trace = 'none')
+  print(plot)
+  dev.off()
+  
+  
+  Probes_sample_names <- colnames(as.matrix(all_samples_bray))
+  Probes_samples_split <- unlist(strsplit(x = Probes_sample_names, split = " "))
+  Probes_col_names <- Probes_samples_split[seq(from = 1, to = length(Probes_samples_split), by = 2)]
+  sample_col_names <- Probes_samples_split[seq(from = 2, to = length(Probes_samples_split), by = 2)]
+  annot <- data.frame(Probes = Probes_col_names, sample = sample_col_names)
+  rownames(annot) <- colnames(as.matrix(all_samples_bray))
+  
+  
+  final_color_vec_pheat <- list(Probes = c("pT" = "#969696", "104545"="#1f78b4", "16S"="#ca0020", "ITS"="#238b45"),
+                                sample = c("L1" = "#7fc97f", "L2" = "#beaed4", "L3" = "#fdc086"))
+  
+  
+  qqplot_filename <- paste(taxa_of_interest, "_all_samples_bray_greater_than_10_reads_pheatmap.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  plot <- pheatmap::pheatmap(as.matrix(all_samples_bray), color = heat_color, 
+                             annotation_col = annot, annotation_row = annot, 
+                             show_colnames = F, show_rownames = F, annotation_colors = final_color_vec_pheat)
+  dev.off()
+  
+
+  #beta diversity: Jaccard
+  
+  sample1_jacc <- prabclus::jaccard(as.matrix(abundance_matrix[sample1_rows,]))
+  sample2_jacc <- prabclus::jaccard(as.matrix(abundance_matrix[sample2_rows,]))
+  sample3_jacc <- prabclus::jaccard(as.matrix(abundance_matrix[sample3_rows,]))
+  all_samples_jacc <- prabclus::jaccard(regmat = as.matrix(abundance_matrix_Probes_by_treat))
+  
+  #plot
+  qqplot_filename <- paste(taxa_of_interest, "_L1_jacc_greater_than_10_reads.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  plot <- gplots::heatmap.2(as.matrix(sample1_jacc), trace = 'none')
+  print(plot)
+  dev.off()
+  
+  qqplot_filename <- paste(taxa_of_interest, "_L2_jacc_greater_than_10_reads.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  plot <- gplots::heatmap.2(as.matrix(sample2_jacc), trace = 'none')
+  print(plot)
+  dev.off()
+  
+  qqplot_filename <- paste(taxa_of_interest, "_L3_jacc_greater_than_10_reads.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  plot <- gplots::heatmap.2(as.matrix(sample3_jacc), trace = 'none')
+  print(plot)
+  dev.off()
+  
+  
+  qqplot_filename <- paste(taxa_of_interest, "_all_samples_jacc_greater_than_10_reads.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  plot <- gplots::heatmap.2(as.matrix(all_samples_jacc), trace = 'none')
+  print(plot)
+  dev.off()
+  
+  #correlation plots of top X most abundant taxa
+  
+  top_taxa <- unique(summary_df$Taxa[summary_df$Rank=="Genus"][order(summary_df$Counts[summary_df$Rank=="Genus"], decreasing = T)])[1:num_of_top_taxa_qqplot]
+  top_taxa_row_name <- c(paste(top_taxa, "L1"), paste(top_taxa, "L2"), paste(top_taxa, "L3"))
+  top_taxa_row_name_L1 <- paste(top_taxa, "L1")
+  top_taxa_row_name_L2 <- paste(top_taxa, "L2")
+  top_taxa_row_name_L3 <- paste(top_taxa, "L3")
+  top_taxa_filter <- rownames(abundance_matrix) %in% top_taxa_row_name
+  top_taxa_filterL1 <- rownames(abundance_matrix) %in% top_taxa_row_name_L1
+  top_taxa_filterL2 <- rownames(abundance_matrix) %in% top_taxa_row_name_L2
+  top_taxa_filterL3 <- rownames(abundance_matrix) %in% top_taxa_row_name_L3
+  
+  #Correlations
+  pairwise_cor <- rcorr(as.matrix(abundance_matrix[top_taxa_filter,]))
+  pairwise_cor2 <- rcorr(log10(as.matrix(abundance_matrix[top_taxa_filter,])+1))
+  
+  pairwise_corL1 <- rcorr(as.matrix(abundance_matrix[top_taxa_filterL1,]))
+  pairwise_cor2L1 <- rcorr(log10(as.matrix(abundance_matrix[top_taxa_filterL1,])+1))
+  
+  pairwise_corL2 <- rcorr(as.matrix(abundance_matrix[top_taxa_filterL2,]))
+  pairwise_cor2L2 <- rcorr(log10(as.matrix(abundance_matrix[top_taxa_filterL2,])+1))
+  
+  pairwise_corL3 <- rcorr(as.matrix(abundance_matrix[top_taxa_filterL3,]))
+  pairwise_cor2L3 <- rcorr(log10(as.matrix(abundance_matrix[top_taxa_filterL3,])+1))
+
+  
+  qqplot_filename <- paste(taxa_of_interest, "_pairwise_correlation_top_", num_of_top_taxa_qqplot, "_taxa.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  #plot
+  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot(pairwise_cor$r, type="upper", order="hclust", 
+           p.mat = pairwise_cor$P, sig.level = 0.01, insig = "label_sig", pch.col = "white")
+  dev.off()
+  
+  qqplot_filename <- paste(taxa_of_interest, "_pairwise_correlation_top_", num_of_top_taxa_qqplot, "_taxa_fullplot.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor$r, lower.col = "black", number.cex = 1, order="hclust", 
+                 p.mat = pairwise_cor$P, sig.level = c(.001, .01, .05), insig = "label_sig", pch.col = "white", upper.col = brewer.pal(n = 5, name = 'PRGn'))
+  dev.off()
+  
+  qqplot_filename <- paste(taxa_of_interest, "_pairwise_correlation_log_top_", num_of_top_taxa_qqplot, "_taxa.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  #plot
+  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot(log10(pairwise_cor2$r +1), type="upper", order="hclust", 
+           p.mat = pairwise_cor2$P, sig.level = 0.01, insig = "label_sig", pch.col = "white")
+  dev.off()
+  
+  qqplot_filename <- paste(taxa_of_interest, "_pairwise_correlation_log_top_", num_of_top_taxa_qqplot, "_taxa_fullplot.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r, lower.col = "black", number.cex = 1, order="hclust", 
+                 p.mat = pairwise_cor2$P, sig.level = c(.001, .01, .05), insig = "label_sig", pch.col = "white", upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  dev.off()
+  
+  #Leaf 1
+    qqplot_filename <- paste(taxa_of_interest, "_pairwise_correlation_top_", num_of_top_taxa_qqplot, "_taxa_fullplot_Leaf1.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_corL1$r, lower.col = "black", number.cex = 1, order="hclust", 
+                 p.mat = pairwise_corL1$P, sig.level = c(.001, .01, .05), insig = "label_sig", pch.col = "white", upper.col = brewer.pal(n = 5, name = 'PRGn'))
+  dev.off()
+  
+    qqplot_filename <- paste(taxa_of_interest, "_pairwise_correlation_log_top_", num_of_top_taxa_qqplot, "_taxa_fullplot_Leaf1.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2L1$r, lower.col = "black", number.cex = 1, order="hclust", 
+                 p.mat = pairwise_cor2L1$P, sig.level = c(.001, .01, .05), insig = "label_sig", pch.col = "white", upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  dev.off()
+  
+  #Leaf 2
+      qqplot_filename <- paste(taxa_of_interest, "_pairwise_correlation_top_", num_of_top_taxa_qqplot, "_taxa_fullplot_Leaf2.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_corL2$r, lower.col = "black", number.cex = 1, order="hclust", 
+                 p.mat = pairwise_corL2$P, sig.level = c(.001, .01, .05), insig = "label_sig", pch.col = "white", upper.col = brewer.pal(n = 5, name = 'PRGn'))
+  dev.off()
+  
+    qqplot_filename <- paste(taxa_of_interest, "_pairwise_correlation_log_top_", num_of_top_taxa_qqplot, "_taxa_fullplot_Leaf2.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2L2$r, lower.col = "black", number.cex = 1, order="hclust", 
+                 p.mat = pairwise_cor2L2$P, sig.level = c(.001, .01, .05), insig = "label_sig", pch.col = "white", upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  dev.off()
+  
+  #Leaf 3
+        qqplot_filename <- paste(taxa_of_interest, "_pairwise_correlation_top_", num_of_top_taxa_qqplot, "_taxa_fullplot_Leaf3.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_corL3$r, lower.col = "black", number.cex = 1, order="hclust", 
+                 p.mat = pairwise_corL3$P, sig.level = c(.001, .01, .05), insig = "label_sig", pch.col = "white", upper.col = brewer.pal(n = 5, name = 'PRGn'))
+  dev.off()
+  
+    qqplot_filename <- paste(taxa_of_interest, "_pairwise_correlation_log_top_", num_of_top_taxa_qqplot, "_taxa_fullplot_Leaf3.pdf", sep = "")
+  qqplot_filename <- paste(dir_output, qqplot_filename, sep = "")
+  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2L3$r, lower.col = "black", number.cex = 1, order="hclust", 
+                 p.mat = pairwise_cor2L3$P, sig.level = c(.001, .01, .05), insig = "label_sig", pch.col = "white", upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  dev.off()
+  
+  ## enrichment part
+  enrichment_df <- data.frame("Counts"=NULL, "Probes"=NULL, "Leaf"=NULL, "Rank"=NULL)
+  
+  for (Probes in unique(summary_df$Probes)){
+    for (leaf in unique(summary_df$Leaf)){
+      for (Rank in unique(summary_df$Rank)){
+        Counts <- sum(summary_df$Counts[summary_df$Probes==Probes & summary_df$Leaf==leaf & summary_df$Rank==Rank])
+        temp_df <- cbind(Counts, Probes, Leaf, Rank)
+        enrichment_df <- rbind(enrichment_df, temp_df)
+      }
+    }
+  }
+  
+  enrichment_df$Probes <- factor(enrichment_df$Probes, levels = c("16S", "104545", "ITS", "pT"))
+  
+  enrichment_df$Counts <- as.numeric(as.character(enrichment_df$Counts))
+  
+  # facet by sample
+  enrichment_counts_filename <- paste(taxa_of_interest, "_enrichemnt_counts.pdf", sep = "")
+  enrichment_counts_filename <- paste(dir_output, enrichment_counts_filename, sep = "")
+  
+  plot1 <- ggplot(data = enrichment_df, aes(x = Rank, y = Counts))+
+    geom_point(aes(color = Probes)) +
+    geom_line(aes(color = Probes, group = Probes)) +
+    theme_classic() +
+    scale_color_manual(values = c("#ca0020", "#1f78b4", "#238b45", "#969696")) +
+    facet_grid(. ~ Leaf) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  
+  pdf(file = enrichment_counts_filename, useDingbats = F)
+  print(plot1)
+  dev.off()
+  
+
+  
+  ## enrichment, fold change calculation and plotting
+  enrichment_df_no_polyT <- enrichment_df[enrichment_df$Probes !=  "pT",]
+  enrichment_df_no_polyT$fold_change <- enrichment_df_no_polyT$Counts / enrichment_df$Counts[enrichment_df$Probes ==  "pT"]
+  
+  # facet by sample
+  enrichment_fold_filename <- paste(taxa_of_interest, "_enrichemnt_fold_change_polyT.pdf", sep = "")
+  enrichment_fold_filename <- paste(dir_output, enrichment_fold_filename, sep = "")
+  
+   
+  plot2 <- ggplot(data =enrichment_df_no_polyT, aes(x = Rank, y = fold_change))+
+    geom_point(aes(color = Probes)) +
+    geom_line(aes(color = Probes, group = Probes)) +
+    scale_color_manual(values = c("#ca0020", "#1f78b4", "#a6cee3", "#238b45")) +
+    #geom_boxplot(aes(fill = Probes))+
+    theme_classic() +
+    facet_grid(. ~ Leaf) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  
+  pdf(file = enrichment_fold_filename, useDingbats = F)
+  print(plot2)
+  dev.off()
+return(abundance_matrix <- abundance_matrix)
+}
+#Bacteria
+enrichment_analysis(data = bact_df, taxa_of_interest = "Bacteria",num_of_top_taxa_qqplot = 1681)
+enrichment_analysis(data = bact_df, taxa_of_interest = "Bacteria",num_of_top_taxa_qqplot = 20)
+
+#Fungi
+enrichment_analysis(data = fungi_df, taxa_of_interest = "Fungi",num_of_top_taxa_qqplot = 1660)
+enrichment_analysis(data = fungi_df, taxa_of_interest = "Fungi",num_of_top_taxa_qqplot = 20)
+
+         
+```
+#Number of unique taxa
+```{r}
+abundance_matrix_fungi <-read.table("~/abundance_matrix_rawCounts.csv")
+no_taxa_fungi <- unique(t(as.data.frame(str_split(rownames(abundance_matrix_fungi), " "))[1,])[,1])
+# unique fungal taxa: 1660
+abundance_matrix_bacteria <-read.table("~/abundance_matrix_rawCounts.csv")
+no_taxa_bact <-  unique(t(as.data.frame(str_split(rownames(abundance_matrix_bacteria), " L"))[1,])[,1])
+# unique fungal taxa: 1681
+
+```
