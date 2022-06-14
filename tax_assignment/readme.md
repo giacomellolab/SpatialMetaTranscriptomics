@@ -21,11 +21,10 @@
 `gzip <out_path>/y_vs_NT.mmseq2.m8`<br><br>
 `perl SpatialMetaTranscriptomics/tax_assignment/extract_best_hit_mmseq_m8_with_multi_mem_efficient.pl <out_path>/y_vs_NT_Jan2021.mmseq2.m8.gz YES`<br><br>
 `perl SpatialMetaTranscriptomics/tax_assignment/Add_NCBI_tax_annotation_to_mmseq_m9.pl <out_path>/y_vs_NT.mmseq2.m8.best_hit_multiple.gz <taxonomy_path>/accession2taxid/nucl_gb_wgs.accession2taxid.with_full_lineage.perlHash <out_path>/y_vs_NT.mmseq2.m8.best_hit_multiple_and_tax`
-<br>
-`perl SpatialMetaTranscriptomics/tax_assignment/mmseq_m8_with_tax_LCA_prefer_classified.pl <out_path>/y_vs_NT.mmseq2.m8.best_hit_multiple_and_tax <out_path>/y_vs_NT.mmseq2.m8.best_hit_multiple_and_tax.query_taxid_for_LCA <out_path>/y_vs_NT.mmseq2.m8.best_hit_multiple_and_tax.query_LCA <taxonomy_path>/accession2taxid/ <out_path>/y_vs_NT.mmseq2.m8.best_hit_multiple_and_tax.LCA.uniq_lineage_count.txt 1><out_path>/y_vs_NT.mmseq2.m8.best_hit_multiple_and_tax.LCA.std 2>&1`
-<br>
+<br><br> `perl SpatialMetaTranscriptomics/tax_assignment/mmseq_m8_with_tax_LCA_prefer_classified.pl <out_path>/y_vs_NT.mmseq2.m8.best_hit_multiple_and_tax <out_path>/y_vs_NT.mmseq2.m8.best_hit_multiple_and_tax.query_taxid_for_LCA <out_path>/y_vs_NT.mmseq2.m8.best_hit_multiple_and_tax.query_LCA <taxonomy_path>/accession2taxid/ <out_path>/y_vs_NT.mmseq2.m8.best_hit_multiple_and_tax.LCA.uniq_lineage_count.txt 1><out_path>/y_vs_NT.mmseq2.m8.best_hit_multiple_and_tax.LCA.std 2>&1`
+<br><br>
 `gzip <out_path>/y_vs_NT.mmseq2.m8.best_hit_multiple_and_tax`
-<br>
+<br><br>
 `gzip <out_path>/y_vs_NT.mmseq2.m8.best_hit_multiple_and_tax.query_taxid_for_LCA.hits.m8`
 
 
