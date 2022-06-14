@@ -13,9 +13,9 @@
 
 
 ## taxonomy assignment
-* For input reads file: `y.fastq` and spatial information file `x....` 
+* For input reads file: `<in_path>/y.fastq` and its corresponding spatial information file `<in_path>/y.demultiplex_matched.tsv.gz` 
 0. `mkdir out_path`
-1. drep reads with usearch:<br>`usearch11.0.667_i86linux32 -fastx_uniques y.fastq -fastaout <out_path>/y.usearch_unique.fasta -tabbedout <out_path>/y.usearch_unique.tabbedout -sizeout -relabel Uniq -strand both`<br><br>
+1. drep reads with usearch:<br>`usearch11.0.667_i86linux32 -fastx_uniques <in_path>/y.fastq -fastaout <out_path>/y.usearch_unique.fasta -tabbedout <out_path>/y.usearch_unique.tabbedout -sizeout -relabel Uniq -strand both`<br><br>
 3. assign taxonomy per read:<br> 
 `mmseqs easy-search --search-type 3 --format-output "query,target,fident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits,qlen" <out_path>/y.usearch_unique.fasta <nt.DB> <out_path>/y_vs_NT.mmseq2.m8> /tmp/ --threads 32 --split-memory-limit 250G`<br><br>
 `gzip <out_path>/y_vs_NT.mmseq2.m8`<br><br>
@@ -27,5 +27,8 @@
 <br><br>
 `gzip <out_path>/y_vs_NT.mmseq2.m8.best_hit_multiple_and_tax.query_taxid_for_LCA.hits.m8`
 
-
-  
+## UMI filtering
+`perl SpatialMetaTranscriptomics/tax_assignment/Filter_by_UMI_usearch_uniq_seq.pl <out_path>/y.usearch_unique.tabbedout <in_path>/y.demultiplex_matched.tsv.gz <out_path>/y.counts_after_UMI_Filtered <out_path>/y.UMI_Filtered_reads.gz <out_path>/y.spatial_pos.txt > <out_path>/y.UMI_filtering.log 2>&1`
+<br><br>
+`gzip <out_path>/y.spatial_pos.txt`
+ 
