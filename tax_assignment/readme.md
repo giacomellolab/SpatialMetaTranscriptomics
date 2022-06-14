@@ -39,8 +39,3 @@
 
 ### ITS (genus level)
 `perl SpatialMetaTranscriptomics/tax_assignment/read_spatial_pos_to_taxonomy_spatial_pos.pl <out_path>/y.spatial_pos.txt <out_path>/y_vs_NT.mmseq2.m8.best_hit_multiple_and_tax.query_taxid_for_LCA.hits.m8 genus <out_path>/y_vs_NT.mmseq2.UMI_filtered.ITS_genus.spatial_pos.txt ITS`
-
-
-# create the spatial genus info ITS
-for x in `ls -1 /ebio/abt6_projects8/spatial_array_metatranscriptomics/data/Spatial_transcriptomics/omni_array/Haim/MMSEQS2/OMNI13/*.best_hit_multiple_and_tax_With_tax.query_LCA.gz | grep A[12]`; do  
-name=`basename  $x ".usearch_unique_vs_NT_Jan2021.mmseq2.m8.best_hit_multiple_and_tax_With_tax.query_LCA.gz"`; 
