@@ -1,0 +1,623 @@
+---
+title: "Arabidopsis_220413"
+author: "Sami Saarenpää"
+date: '2022-04-13'
+output: html_document
+---
+
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(fig.path='figs/', fig.width=14, fig.height=10, warning=FALSE, message=FALSE)
+```
+
+# Load the packages
+```{r libraries-load, echo=FALSE}
+suppressPackageStartupMessages({
+  library(STutility)
+  library(cowplot)
+  library(harmony)  
+  library(stringr)
+})
+```
+
+#Processing of the json spot files from Loupe Browser to tsv files compatible with data output of ST Pipeline
+```{r, fig.height=6, fig.width=6, echo=F}
+
+js <- jsonlite::read_json(path = "Arabidopsis/10_45_45_all_samples_R/spotfiles/EXP12_128_A1_alignment.json")
+# Extract spot coordinates from json file
+df <- do.call(plyr::rbind.fill, sapply(js$oligo, function(ls) {
+  data.frame(ls)
+}))
+# Create a new selection file compatible with STUtility
+selection_file <- data.frame(x = df$col, y = df$row,
+                             x_new = df$col, y_new = df$row,
+                             pixel_x = df$imageX, pixel_y = df$imageY, 
+                             selection = ifelse(!is.na(df$tissue), 1, 0))
+# Export new selection file
+write.table(x = selection_file, file = "Arabidopsis/10_45_45_all_samples_R/spotfiles/EXP12_128_A1_alignment.tsv", row.names = F, col.names = T, quote = F, sep = "\t")
+
+```
+
+#Metadata and infotable
+```{r}
+#raw_data_ST <- data.frame()
+
+samples <- list.files(path = "Arabidopsis/10_45_45_all_samples/data/stdata", pattern = ".tsv", recursive = FALSE, full.names = T)
+
+imgs <- list.files(path = "Arabidopsis/10_45_45_all_samples_R/imgs/", pattern = ".jpg", recursive = FALSE, full.names = T)
+
+spotfiles <- list.files(path = "Arabidopsis/10_45_45_all_samples_R/spotfiles/", pattern = ".tsv", recursive = FALSE, full.names = T)
+
+slide_id <- c(rep("128",6), rep("121", 7))
+leaf <- c("1","1","2","1","2","2","3","3","3", "4", "4", "4", "4")
+plant <- c("p1", "p1", "p1", "p1", "p1", "p1", "p2", "p2", "p2", "p2", "p2", "p2", "p2")
+section_id <- c("128_A1", "128_A2", "128_B1", "128_B2", "128_C1", "128_C2", "121_A1", "121_A2", "121_B1", "121_B2", "121_C1", "121_C2", "121_D1")
+
+
+infoTable <- data.frame(samples, 
+                        spotfiles, 
+                        imgs,
+                        slide_id,
+                        leaf,
+                        plant,
+                        section_id,
+                        stringsAsFactors = F)
+```
+
+
+
+#Reading the data with STUtility and filtering
+```{r, fig.width = 22, fig.height=18}
+
+moderate_filter <- InputFromTable(infotable = infoTable, 
+                                 transpose = F, 
+                                 platform = "Visium",
+                                 minUMICountsPerGene = 30,
+                                 minUMICountsPerSpot = 10,
+                                 minSpotsPerGene = 20,
+                                 minGenesPerSpot = 10)
+
+```
+
+#Filtering of mitochondrial, chloroplast, ribosomal and non-coding genes
+```{r, fig.width = 22, fig.height=18}
+  mt.genes<- grep(pattern = "^ATM", x = rownames(moderate_filter), value = TRUE)
+  chloro.genes <- grep(pattern = "^ATC", x = rownames(moderate_filter), value = TRUE)
+  rb.Genes <- as.list(c("AT1G72370", "AT3G04770", "AT1G58380", "AT1G59359", "AT2G41840", "AT3G57490", "AT1G58684", "AT1G58983", "AT2G31610", "AT3G53870", "AT5G35530", "AT3G04840", "AT4G34670", "AT2G17360", "AT5G07090", "AT5G58420", "AT2G37270", "AT3G11940", "AT4G31700", "AT5G10360", "AT1G48830", "AT3G02560", "AT5G16130", "AT5G20290", "AT5G59240", "AT4G12160", "AT5G15200", "AT5G39850", "AT4G25740", "AT5G41520", "AT5G52650", "AT3G48930", "AT4G30800", "AT5G23740", "AT1G15930", "AT1G80800", "AT2G32060", "AT3G60770", "AT4G00100", "AT2G36160", "AT3G11510", "AT3G52580", "AT1G04270", "AT5G09490", "AT5G09500", "AT5G09510", "AT5G43640", "AT5G63070", "AT1G07770", "AT2G19720", "AT2G39590", "AT3G46040", "AT4G29430", "AT5G59850", "AT2G09990", "AT3G04230", "AT5G18380", "AT2G04390", "AT2G05220", "AT3G10610", "AT5G04800", "AT1G22780", "AT1G34030", "AT4G09800", "AT3G02080", "AT5G15520", "AT5G61170", "AT3G45030", "AT3G47370", "AT5G62300", "AT3G27450", "AT3G53890", "AT5G27700", "AT3G09680", "AT5G02960", "AT3G04920", "AT5G28060", "AT2G16360", "AT2G21580", "AT3G30740", "AT4G34555", "AT4G39200", "AT2G40510", "AT2G40590", "AT3G56340", "AT2G45710", "AT3G61110", "AT5G47930", "AT1G23410", "AT2G47100", "AT3G62250", "AT3G10090", "AT5G03850", "AT5G64140", "AT3G43980", "AT3G44010", "AT4G33865", "AT2G19750", "AT4G29390", "AT5G56670", "AT2G40010", "AT3G09200", "AT3G11250", "AT1G01100", "AT4G00810", "AT5G47700", "AT5G24510", "AT3G49460", "AT2G27720", "AT2G27710", "AT3G28500", "AT3G44590", "AT5G40040", "AT4G25890", "AT5G57290", "AT1G43170", "AT1G61580", "AT5G42445", "AT3G09630", "AT1G35200", "AT2G24730", "AT5G02870", "AT3G25520", "AT5G39740", "AT5G40130", "AT1G18540", "AT1G74060", "AT1G74050", "AT1G80750", "AT2G01250", "AT2G44120", "AT3G13580", "AT2G47610", "AT3G62870", "AT2G18020", "AT3G51190", "AT4G36130", "AT1G33120", "AT1G33140", "AT4G10450", "AT1G14320", "AT1G26910", "AT1G66580", "AT1G08360", "AT2G27530", "AT5G22440", "AT2G42740", "AT3G58700", "AT4G18730", "AT5G45775", "AT2G37190", "AT3G53430", "AT5G60670", "AT3G48130", "AT3G49010", "AT3G48960", "AT5G23900", "AT3G07110", "AT3G24830", "AT4G13170", "AT5G48760", "AT2G20450", "AT4G27090", "AT4G16720", "AT4G17390", "AT1G27400", "AT1G67430", "AT2G47570", "AT3G05590", "AT5G27850", "AT1G29970", "AT2G34480", "AT3G14600", "AT1G02780", "AT3G16780", "AT4G02230", "AT1G09590", "AT1G09486", "AT1G09690", "AT1G31355", "AT1G57660", "AT3G57820", "AT1G57860", "AT1G02830", "AT3G05560", "AT5G27770", "AT1G04480", "AT2G33370", "AT3G04400", "AT2G39460", "AT3G55280", "AT2G36620", "AT3G53020", "AT2G44860", "AT3G49910", "AT5G67510", "AT2G32220", "AT3G22230", "AT4G15000", "AT1G12960", "AT1G23290", "AT1G70600", "AT2G19730", "AT3G06700", "AT3G06680", "AT1G36240", "AT1G77940", "AT3G18740", "AT2G19740", "AT4G26230", "AT5G56710", "AT4G18100", "AT5G46430", "AT1G26880", "AT1G69620", "AT3G28900", "AT3G09500", "AT2G39390", "AT3G55170", "AT5G02610", "AT1G07070", "AT1G41880", "AT1G74270", "AT3G55750", "AT2G37600", "AT3G53740", "AT5G02450", "AT3G23390", "AT4G14320", "AT1G15250", "AT1G52300", "AT3G16080", "AT2G35180", "AT3G10950", "AT3G60245", "AT2G43460", "AT3G59540", "AT2G25210", "AT3G02190", "AT4G31985", "AT2G36170", "AT3G52590", "AT1G56045", "AT3G08520", "AT3G11120", "AT3G56020"))
+  Araport11_rRNA.201606 <- read.table("Arabidopsis/Araport11_rRNA.201606.ID", quote="\"", comment.char="")
+  Araport11_rRNA.201606 <- as.list(Araport11_rRNA.201606$V1)
+  rb.Genes <- as.character(append(rb.Genes,Araport11_rRNA.201606))
+   
+  #Noncoding genes to remove
+  noncoding.genes <-  read.table("Arabidopsis/Araport11_non_coding.201606.ID", quote="\"", comment.char="")
+  noncoding.genes <- as.character(noncoding.genes$V1)
+```
+
+##Mt filter
+```{r, fig.width= 8, fig.height=20}
+
+mt.moderate_filter <- moderate_filter[setdiff(rownames(moderate_filter),mt.genes)]
+
+```
+##MtRb filter
+```{r, fig.width= 8, fig.height=20}
+
+mtrb.moderate_filter <- moderate_filter[setdiff(rownames(mt.moderate_filter),intersect(rownames(mt.moderate_filter), rb.Genes))]
+
+```
+##MtRbCp filter
+```{r, fig.width= 8, fig.height=20}
+
+mtrbcp.moderate_filter <- mtrb.moderate_filter[setdiff(rownames(mtrb.moderate_filter),chloro.genes)]
+
+```
+##Extra genes removed
+```{r, fig.width= 8, fig.height=20}
+
+mtrbcpnoncod.moderate_filter <- mtrbcp.moderate_filter[setdiff(rownames(mtrbcp.moderate_filter),intersect(rownames(mtrbcp.moderate_filter), noncoding.genes))]
+
+```
+
+##Filter low number spots and subsetting the object based one the section
+```{r, fig.width= 8, fig.height=20}
+
+mtrbcpnoncod.moderate_filter.subset <- SubsetSTData(mtrbcpnoncod.moderate_filter, expression = nFeature_RNA >= 10)
+
+subset.list.mtrbcpnoncod.moderate_filter <- c()
+for (i in 1:length(infoTable$section_id)){
+subset.list.mtrbcpnoncod.moderate_filter[[i]] <- SubsetSTData(mtrbcpnoncod.moderate_filter.subset, spots = colnames(mtrbcpnoncod.moderate_filter.subset)[mtrbcpnoncod.moderate_filter.subset$section_id == infoTable$section_id[i]])
+}
+```
+
+##Normalisation of each of the section separately to remove intra-section batch effects
+```{r, fig.width= 8, fig.height=20}
+ST_list.mtrbcpnoncod.moderate_filter <- lapply(subset.list.mtrbcpnoncod.moderate_filter, function(x){
+SCTransform(x, verbose =T, return.only.var.genes = F)})
+```
+
+#Colors
+```{r echo=FALSE, fig.width=10, fig.height=10}
+
+col_vector1 <- c( "#697A21", "#E49AB0",  "#3E363F", "#B8B42D","#42CAFD", "#504850", "#605960", "#B8B42D", "#697A21", "#E49AB0", "#725752", "#05668D", "#00FDDC", "#42CAFD","#DA7422", "#504850", "#605960" ,"#00FDDC")
+arabidopsis.fill <- data.frame(1:18, col_vector1)
+```
+
+
+##Integration of the section, PCA
+```{r, fig.width= 15, fig.height=15}
+#Intergation features for PrepSCTIntegration
+arabidopsis.features.mtrbcpnoncod.moderate_filter <- SelectIntegrationFeatures(object.list = ST_list.mtrbcpnoncod.moderate_filter)
+options(future.globals.maxSize = 8000 * 1024^2)
+
+#PreIntegration step
+ST_list.mtrbcpnoncod.moderate_filter <- PrepSCTIntegration(object.list = ST_list.mtrbcpnoncod.moderate_filter, anchor.features = arabidopsis.features.mtrbcpnoncod.moderate_filter)
+
+#Merging the objects
+mtrbcpnoncod.moderate_filter.merged <- MergeSTData(ST_list.mtrbcpnoncod.moderate_filter[[1]], ST_list.mtrbcpnoncod.moderate_filter[2:length(ST_list.mtrbcpnoncod.moderate_filter)], merge.data = TRUE)
+VariableFeatures(object = mtrbcpnoncod.moderate_filter.merged) <- arabidopsis.features.mtrbcpnoncod.moderate_filter
+
+#PCA
+mtrbcpnoncod.moderate_filter.merged.PCA <- RunPCA(object = mtrbcpnoncod.moderate_filter.merged, assay = "SCT", features = arabidopsis.features.mtrbcpnoncod.moderate_filter)
+
+```
+
+##Normalisation with Harmony to remove batch effects between samples and UMAP visualisation
+```{r, fig.width= 5, fig.height=5}
+#Harmony
+mtrbcpnoncod.moderate_filter.merged.PCA.harmony <- RunHarmony(mtrbcpnoncod.moderate_filter.merged.PCA, group.by.vars =c("slide_id", "plant", "leaf"), plot_convergence = TRUE, theta = c(4,4,4), assay.use = "SCT", reduction = "pca", dims.use = 1:8)
+
+#UMAP
+mtrbcpnoncod.moderate_filter.merged.PCA.harmony <- RunUMAP( object = mtrbcpnoncod.moderate_filter.merged.PCA.harmony, dims = 1:8, assay = "SCT", reduction = "harmony")
+mtrbcpnoncod.moderate_filter.merged.PCA.harmony <- FindNeighbors(object = mtrbcpnoncod.moderate_filter.merged.PCA.harmony, assay = "SCT" ,reduction = "harmony", k.param = 15, dims = 1:8)
+mtrbcpnoncod.moderate_filter.merged.PCA.harmony <- FindClusters(object = mtrbcpnoncod.moderate_filter.merged.PCA.harmony, resolution = 0.22, random.seed = 5)
+
+#UMAP visualisation
+DimPlot(object = mtrbcpnoncod.moderate_filter.merged.PCA.harmony, reduction = "umap", cols = col_vector1)
+
+```
+
+#Opacity change, masking the image
+```{r, fig.width= 16, fig.height=13}
+
+mtrbcpnoncod.moderate_filter.merged.PCA.harmony <- LoadImages(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, time.resolve = F, xdim = 900)
+mtrbcpnoncod.moderate_filter.merged.PCA.harmony <- MaskImages(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, channels.use = 1, iso.blur = 3)
+
+st.object <- GetStaffli(mtrbcpnoncod.moderate_filter.merged.PCA.harmony) # Collect Staffli object from Seurat object
+
+# following part will modify the "raw" images
+# If you want to change the opacity for "masked" or "processed" images you will need to specify this
+st.object@rasterlists$masked <- lapply(st.object@rasterlists$masked, function(im) {
+  im <- apply(im, 2, function(x) {
+    scales::alpha(x, alpha = 0.6)
+  })
+  return(im)
+})
+mtrbcpnoncod.moderate_filter.merged.PCA.harmony@tools$Staffli <- st.object
+
+ImagePlot(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, type = "masked")
+```
+
+##UMAP clusters on tissue
+```{r, fig.width= 12, fig.height=9}
+
+se <- mtrbcpnoncod.moderate_filter.merged.PCA.harmony
+col_vector1 <- c("#B8B42D", "#697A21", "#DC0073", "#DA7422", "#510D0A", "#3E363F", "#E49AB0")
+plots1 <- c()
+for (i in 1:length(unique(se$seurat_clusters))){
+  plots1[[i]] =FeatureOverlay(object = SubsetSTData(se, 
+                                                   spots = colnames(se)[se$section_id == infoTable$section_id[[1]] & se$seurat_clusters == levels(se$seurat_clusters)[[i]]]),
+                             features = "seurat_clusters",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             sample.label = F,
+                             cols = col_vector1[[i]],
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+plots2 <- c()
+for (i in 1:length(unique(se$seurat_clusters))){
+  plots2[[i]] =FeatureOverlay(object = SubsetSTData(se, 
+                                                   spots = colnames(se)[se$section_id == infoTable$section_id[[2]] & se$seurat_clusters == levels(se$seurat_clusters)[[i]]]),
+                             features = "seurat_clusters",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             sample.label = F,
+                             cols = col_vector1[[i]],
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+plots3 <- c()
+for (i in 1:length(unique(se$seurat_clusters))){
+  plots3[[i]] =FeatureOverlay(object = SubsetSTData(se, 
+                                                   spots = colnames(se)[se$section_id == infoTable$section_id[[3]] & se$seurat_clusters == levels(se$seurat_clusters)[[i]]]),
+                             features = "seurat_clusters",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             sample.label = F,
+                             cols = col_vector1[[i]],
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+plots4 <- c()
+for (i in 1:length(unique(se$seurat_clusters))){
+  plots4[[i]] =FeatureOverlay(object = SubsetSTData(se, 
+                                                   spots = colnames(se)[se$section_id == infoTable$section_id[[4]] & se$seurat_clusters == levels(se$seurat_clusters)[[i]]]),
+                             features = "seurat_clusters",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             sample.label = F,
+                             cols = col_vector1[[i]],
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+plots5 <- c()
+for (i in 1:length(unique(se$seurat_clusters))){
+  plots5[[i]] =FeatureOverlay(object = SubsetSTData(se, 
+                                                   spots = colnames(se)[se$section_id == infoTable$section_id[[5]] & se$seurat_clusters == levels(se$seurat_clusters)[[i]]]),
+                             features = "seurat_clusters",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             sample.label = F,
+                             cols = col_vector1[[i]],
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+plots6 <- c()
+for (i in 1:length(unique(se$seurat_clusters))){
+  plots6[[i]] =FeatureOverlay(object = SubsetSTData(se, 
+                                                   spots = colnames(se)[se$section_id == infoTable$section_id[[6]] & se$seurat_clusters == levels(se$seurat_clusters)[[i]]]),
+                             features = "seurat_clusters",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             sample.label = F,
+                             cols = col_vector1[[i]],
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+plots7 <- c()
+for (i in 1:length(unique(se$seurat_clusters))){
+  plots7[[i]] =FeatureOverlay(object = SubsetSTData(se, 
+                                                   spots = colnames(se)[se$section_id == infoTable$section_id[[7]] & se$seurat_clusters == levels(se$seurat_clusters)[[i]]]),
+                             features = "seurat_clusters",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             sample.label = F,
+                             cols = col_vector1[[i]],
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+plots8 <- c()
+for (i in 1:length(unique(se$seurat_clusters))){
+  plots8[[i]] =FeatureOverlay(object = SubsetSTData(se, 
+                                                   spots = colnames(se)[se$section_id == infoTable$section_id[[8]] & se$seurat_clusters == levels(se$seurat_clusters)[[i]]]),
+                             features = "seurat_clusters",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             sample.label = F,
+                             cols = col_vector1[[i]],
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+plots9 <- c()
+for (i in 1:length(unique(se$seurat_clusters))){
+  plots9[[i]] =FeatureOverlay(object = SubsetSTData(se, 
+                                                   spots = colnames(se)[se$section_id == infoTable$section_id[[9]] & se$seurat_clusters == levels(se$seurat_clusters)[[i]]]),
+                             features = "seurat_clusters",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             sample.label = F,
+                             cols = col_vector1[[i]],
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+plots10 <- c()
+for (i in 1:length(unique(se$seurat_clusters))){
+  plots10[[i]] =FeatureOverlay(object = SubsetSTData(se, 
+                                                   spots = colnames(se)[se$section_id == infoTable$section_id[[10]] & se$seurat_clusters == levels(se$seurat_clusters)[[i]]]),
+                             features = "seurat_clusters",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             sample.label = F,
+                             cols = col_vector1[[i]],
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+plots11 <- c()
+for (i in 1:length(unique(se$seurat_clusters))){
+  plots11[[i]] =FeatureOverlay(object = SubsetSTData(se, 
+                                                   spots = colnames(se)[se$section_id == infoTable$section_id[[11]] & se$seurat_clusters == levels(se$seurat_clusters)[[i]]]),
+                             features = "seurat_clusters",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             sample.label = F,
+                             cols = col_vector1[[i]],
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+plots12 <- c()
+for (i in 1:length(unique(se$seurat_clusters))){
+  plots12[[i]] =FeatureOverlay(object = SubsetSTData(se, 
+                                                   spots = colnames(se)[se$section_id == infoTable$section_id[[12]] & se$seurat_clusters == levels(se$seurat_clusters)[[i]]]),
+                             features = "seurat_clusters",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             sample.label = F,
+                             cols = col_vector1[[i]],
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+plots13 <- c()
+for (i in 1:length(unique(se$seurat_clusters))){
+  plots13[[i]] =FeatureOverlay(object = SubsetSTData(se, 
+                                                   spots = colnames(se)[se$section_id == infoTable$section_id[[13]] & se$seurat_clusters == levels(se$seurat_clusters)[[i]]]),
+                             features = "seurat_clusters",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             sample.label = F,
+                             cols = col_vector1[[i]],
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+```
+
+
+#Marker detection
+```{r}
+NormalizeData(se, assay = "RNA", normalization.method = "LogNormalize") 
+Markers.mtrbcpnoncod.5cl.RNA.poisson <- FindAllMarkers(se, test.use = "poisson", logfc.threshold = 0.15, min.pct = 0.02, only.pos = F, random.seed = 5678)
+markers <- Markers.mtrbcpnoncod.5cl.RNA.poisson$gene
+
+```
+
+##Marker visualisation
+```{r, fig.width= 15, fig.height=14}
+
+FeatureOverlay(object = se,
+                        features = "AT1G29910",
+                        spots = rownames(subset(se[[]],GetAssayData(object=se,assay="RNA",slot="counts")["AT1G29910",] >= 1)),
+                        pt.size = 1.1,
+                        sampleids = 1:13,
+                        type = "masked",
+                        cols =  c("#fffce8", "#B8B42D", "#B8B42D", "3e363f", "3e363f", "697a21", "697a21"),
+                        pt.alpha = 1,
+                        ncols = 4)
+
+FeatureOverlay(object = se,
+                        features = "AT2G30860",
+                        spots = rownames(subset(se[[]],GetAssayData(object=se,assay="RNA",slot="counts")["AT2G30860",] >= 1)),
+                        pt.size = 1.1,
+                        sampleids = 1:13,
+                        type = "masked",
+                        cols =  c("#fffce8", "#B8B42D", "#B8B42D", "3e363f", "3e363f", "697a21", "697a21"),
+                        pt.alpha = 1,
+                        ncols = 4)
+
+FeatureOverlay(object = se,
+                        features = "AT2G35750",
+                        spots = rownames(subset(se[[]],GetAssayData(object=se,assay="RNA",slot="counts")["AT2G35750",] >= 1)),
+                        pt.size = 1.1,
+                        sampleids = 1:13,
+                        type = "masked",
+                        cols =  c("#fffce8", "#B8B42D", "#B8B42D", "3e363f", "3e363f", "697a21", "697a21"),
+                        pt.alpha = 1,
+                        ncols = 4)
+
+FeatureOverlay(object = se,
+                        features = "AT2G31141",
+                        spots = rownames(subset(se[[]],GetAssayData(object=se,assay="RNA",slot="counts")["AT2G31141",] >= 1)),
+                        pt.size = 1.1,
+                        sampleids = 1:13,
+                        type = "masked",
+                        cols =  c("#fffce8", "#B8B42D", "#B8B42D", "3e363f", "3e363f", "697a21", "697a21"),
+                        pt.alpha = 1,
+                        ncols = 4)
+
+```
+
+##Number of genes and unique molecules -- Arabidopsis
+```{r, fig.width= 12, fig.height=20}
+DefaultAssay(mtrbcpnoncod.moderate_filter.merged.PCA.harmony) <- "RNA"
+ugenes <- nrow(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)
+
+umolecules <- sum(rowSums(mtrbcpnoncod.moderate_filter.merged.PCA.harmony))
+
+unique_genes <- c()
+unique_molecules <- c()
+temp_sample <- c()
+keep.genes <- c()
+spots_sample <- c()
+for (i in 1:length(infoTable$section_id)){
+  temp_sample[[i]] <- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[i]])
+  keep.genes[[i]] <- rownames(temp_sample[[i]][rowSums(temp_sample[[i]]@assays$RNA@counts) >0])
+  unique_genes[[i]] <- length(keep.genes[[i]])
+  temp_sample[[i]] <- temp_sample[[i]][intersect(rownames(temp_sample[[i]]), keep.genes[[i]])]
+  unique_molecules[[i]] <- sum(rowSums(temp_sample[[i]]))
+  spots_sample[[i]] <- ncol(temp_sample[[i]])
+}
+
+remove(temp_sample)
+#Mean unique genes per sample
+mean(as.numeric(unlist(unique_genes)))
+#Mean unique molecules per sample
+mean(as.numeric(unlist(unique_molecules)))
+```
+
+#Arabidopsis unique molecules and genes
+```{r, fig.width= 12, fig.height=7}
+mtrbcpnoncod.moderate_filter.merged.PCA.harmony$log.nFeature_RNA <- log10(mtrbcpnoncod.moderate_filter.merged.PCA.harmony$nFeature_RNA + 1)
+mtrbcpnoncod.moderate_filter.merged.PCA.harmony$log.nCount_RNA <- log10(mtrbcpnoncod.moderate_filter.merged.PCA.harmony$nCount_RNA + 1)
+
+plots <- c()
+for (i in 1:13){
+plots[[i]] <- FeatureOverlay(object = mtrbcpnoncod.moderate_filter.merged.PCA.harmony,
+               features = c("log.nCount_RNA", "log.nFeature_RNA"),
+                                  pt.size = 1.8,
+                                  sampleids = i,
+                                  type = "masked",
+                                  cols =  c("#fffce8", "#B8B42D", "#B8B42D", "3e363f", "3e363f", "697a21", "697a21"),
+               ncols = 2,
+               pt.alpha = 0.5,
+               pt.border = FALSE)
+}
+```
+
+
+#Process and load the bacterial reads to the object as a new assay
+```{r}
+bacteria <- list.files(path = "Arabidopsis/10_45_45_all_samples/bacterial_data_210811/EXP104545/", pattern = "bacteria.csv", recursive = FALSE, full.names = T)
+EXP_bacteria <- c()
+for (i in 1:length(bacteria)){
+  EXP_bacteria[[i]] <- read.csv(bacteria[[i]], row.names=1, sep=";", header = F)
+}
+colnames(EXP_bacteria[[1]]) <-lapply(lapply(EXP_bacteria[[1]][1,], function(x) paste(x,'_1')), function(x) str_remove(x, " "))
+colnames(EXP_bacteria[[2]]) <-lapply(lapply(EXP_bacteria[[2]][1,], function(x) paste(x,'_2')), function(x) str_remove(x, " "))
+colnames(EXP_bacteria[[3]]) <-lapply(lapply(EXP_bacteria[[3]][1,], function(x) paste(x,'_3')), function(x) str_remove(x, " "))
+colnames(EXP_bacteria[[4]]) <-lapply(lapply(EXP_bacteria[[4]][1,], function(x) paste(x,'_4')), function(x) str_remove(x, " "))
+colnames(EXP_bacteria[[5]]) <-lapply(lapply(EXP_bacteria[[5]][1,], function(x) paste(x,'_5')), function(x) str_remove(x, " "))
+colnames(EXP_bacteria[[6]]) <-lapply(lapply(EXP_bacteria[[6]][1,], function(x) paste(x,'_6')), function(x) str_remove(x, " "))
+colnames(EXP_bacteria[[7]]) <-lapply(lapply(EXP_bacteria[[7]][1,], function(x) paste(x,'_7')), function(x) str_remove(x, " "))
+colnames(EXP_bacteria[[8]]) <-lapply(lapply(EXP_bacteria[[8]][1,], function(x) paste(x,'_8')), function(x) str_remove(x, " "))
+colnames(EXP_bacteria[[9]]) <-lapply(lapply(EXP_bacteria[[9]][1,], function(x) paste(x,'_9')), function(x) str_remove(x, " "))
+colnames(EXP_bacteria[[10]]) <-lapply(lapply(EXP_bacteria[[10]][1,], function(x) paste(x,'_10')), function(x) str_remove(x, " "))
+colnames(EXP_bacteria[[11]]) <-lapply(lapply(EXP_bacteria[[11]][1,], function(x) paste(x,'_11')), function(x) str_remove(x, " "))
+colnames(EXP_bacteria[[12]]) <-lapply(lapply(EXP_bacteria[[12]][1,], function(x) paste(x,'_12')), function(x) str_remove(x, " "))
+colnames(EXP_bacteria[[13]]) <-lapply(lapply(EXP_bacteria[[13]][1,], function(x) paste(x,'_13')), function(x) str_remove(x, " "))
+
+for (i in  1:length(EXP_bacteria)){
+  
+  EXP_bacteria[[i]] <- EXP_bacteria[[i]][-1,]
+}
+
+brns <- unique(unlist(lapply(EXP_bacteria, rownames)))
+bcns <- colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)
+bac_df <- data.frame(matrix(0, nrow = length(brns), ncol = length(bcns)))
+rownames(bac_df) <- brns
+colnames(bac_df) <- bcns
+for (i in c(1:length(EXP_bacteria))){
+  bac_df[rownames(EXP_bacteria[[i]]), colnames(EXP_bacteria[[i]])] = EXP_bacteria[[i]]
+}
+orig_s <- colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)
+orig_b <- colnames(bac_df)
+rmoves <- setdiff(orig_b, orig_s)
+bac_df_filt <- bac_df[ , -which(names(bac_df) %in% rmoves)]
+bac_df_filt[is.na(bac_df_filt)]<- 0
+
+
+mtrbcpnoncod.moderate_filter.merged.PCA.harmony[['BACTERIA']] <- CreateAssayObject(counts = bac_df_filt)
+DefaultAssay(mtrbcpnoncod.moderate_filter.merged.PCA.harmony) <- "BACTERIA"
+
+```
+#Process and load the fungal reads to the object as a new assay
+```{r}
+
+ITS <- list.files(path = "Arabidopsis/10_45_45_all_samples/bacterial_data_210811/EXP104545/", pattern = "ITS.csv", recursive = FALSE, full.names = T)
+EXP_ITS <- c()
+for (i in 1:length(ITS)){
+  EXP_ITS[[i]] <- read.csv(ITS[[i]], row.names=1, sep=";", header = F)
+}
+colnames(EXP_ITS[[1]]) <-lapply(lapply(EXP_ITS[[1]][1,], function(x) paste(x,'_1')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[2]]) <-lapply(lapply(EXP_ITS[[2]][1,], function(x) paste(x,'_2')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[3]]) <-lapply(lapply(EXP_ITS[[3]][1,], function(x) paste(x,'_3')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[4]]) <-lapply(lapply(EXP_ITS[[4]][1,], function(x) paste(x,'_4')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[5]]) <-lapply(lapply(EXP_ITS[[5]][1,], function(x) paste(x,'_5')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[6]]) <-lapply(lapply(EXP_ITS[[6]][1,], function(x) paste(x,'_6')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[7]]) <-lapply(lapply(EXP_ITS[[7]][1,], function(x) paste(x,'_7')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[8]]) <-lapply(lapply(EXP_ITS[[8]][1,], function(x) paste(x,'_8')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[9]]) <-lapply(lapply(EXP_ITS[[9]][1,], function(x) paste(x,'_9')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[10]]) <-lapply(lapply(EXP_ITS[[10]][1,], function(x) paste(x,'_10')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[11]]) <-lapply(lapply(EXP_ITS[[11]][1,], function(x) paste(x,'_11')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[12]]) <-lapply(lapply(EXP_ITS[[12]][1,], function(x) paste(x,'_12')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[13]]) <-lapply(lapply(EXP_ITS[[13]][1,], function(x) paste(x,'_13')), function(x) str_remove(x, " "))
+
+
+
+for (i in  1:length(EXP_ITS)){
+  
+  EXP_ITS[[i]] <- EXP_ITS[[i]][-1,]
+}
+
+irns <- unique(unlist(lapply(EXP_ITS, rownames)))
+icns <- colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)
+its_df <- data.frame(matrix(0, nrow = length(irns), ncol = length(icns)))
+rownames(its_df) <- irns
+colnames(its_df) <- icns
+for (i in c(1:length(EXP_ITS))){
+  its_df[rownames(EXP_ITS[[i]]), colnames(EXP_ITS[[i]])] = EXP_ITS[[i]]
+}
+orig_si <- colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)
+orig_bi <- colnames(its_df)
+rmovesi <- setdiff(orig_bi, orig_si)
+its_df_filt <- its_df[ , -which(names(its_df) %in% rmovesi)]
+its_df_filt[is.na(its_df_filt)]<- 0
+
+
+mtrbcpnoncod.moderate_filter.merged.PCA.harmony[['ITS']] <- CreateAssayObject(counts = its_df_filt)
+DefaultAssay(mtrbcpnoncod.moderate_filter.merged.PCA.harmony) <- "ITS"
+
+```
+
+
+##Number of genes and unique molecules -- Bacteria
+```{r, fig.width= 12, fig.height=20}
+DefaultAssay(mtrbcpnoncod.moderate_filter.merged.PCA.harmony) <- "BACTERIA"
+
+bacUMIs <- rowSums(GetAssayData(object = mtrbcpnoncod.moderate_filter.merged.PCA.harmony, assay = "BACTERIA"))
+
+bacUMIs_filt <-bacUMIs[bacUMIs>30]
+
+ugenes_bac <- nrow(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)
+umolecules_bac <- sum(rowSums(mtrbcpnoncod.moderate_filter.merged.PCA.harmony))
+
+```
+
+
+##Number of genes and unique molecules -- Fungi
+```{r, fig.width= 12, fig.height=20}
+DefaultAssay(mtrbcpnoncod.moderate_filter.merged.PCA.harmony) <- "ITS"
+
+funUMIs <- rowSums(GetAssayData(object = mtrbcpnoncod.moderate_filter.merged.PCA.harmony, assay = "ITS"))
+
+funUMIs_filt <-funUMIs[funUMIs>30]
+
+ugenes_its <- nrow(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)
+umolecules_its <- sum(rowSums(mtrbcpnoncod.moderate_filter.merged.PCA.harmony))
+
+```
+
+#Microbial unique molecules and genes
+```{r, fig.width= 18, fig.height=30}
+mtrbcpnoncod.moderate_filter.merged.PCA.harmony$log.nFeature_BACTERIA <- log10(mtrbcpnoncod.moderate_filter.merged.PCA.harmony$nFeature_BACTERIA + 1)
+mtrbcpnoncod.moderate_filter.merged.PCA.harmony$log.nCount_BACTERIA <- log10(mtrbcpnoncod.moderate_filter.merged.PCA.harmony$nCount_BACTERIA + 1)
+mtrbcpnoncod.moderate_filter.merged.PCA.harmony$log.nFeature_ITS <- log10(mtrbcpnoncod.moderate_filter.merged.PCA.harmony$nFeature_ITS + 1)
+mtrbcpnoncod.moderate_filter.merged.PCA.harmony$log.nCount_ITS <- log10(mtrbcpnoncod.moderate_filter.merged.PCA.harmony$nCount_ITS +1 )
+
+plots <- c()
+
+for (i in 1:13){
+plots[[i]] <- FeatureOverlay(object = mtrbcpnoncod.moderate_filter.merged.PCA.harmony,
+               features = c("log.nCount_BACTERIA", "log.nFeature_BACTERIA", "log.nCount_ITS", "log.nFeature_ITS"),
+                                  pt.size = 1.8,
+                                  sampleids = i,
+                                  type = "masked",
+                                  cols =  c("#fffce8", "#B8B42D", "#B8B42D", "3e363f", "3e363f", "697a21", "697a21"),
+               ncols = 2, 
+               pt.alpha = 0.5,
+               pt.border = FALSE)
+}
+```
+
+```{r}
+writeLines(capture.output(sessionInfo()), "Arabidopsis/10_45_45_all_samples_R/sessionInfo.txt")
+```

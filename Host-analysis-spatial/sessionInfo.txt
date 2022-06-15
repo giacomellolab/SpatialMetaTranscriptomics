@@ -1,0 +1,35 @@
+R version 4.0.5 (2021-03-31)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Red Hat Enterprise Linux 8.6 (Ootpa)
+
+Matrix products: default
+BLAS/LAPACK: /usr/lib64/libopenblasp-r0.3.15.so
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C               LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8     LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8    LC_PAPER=en_US.UTF-8      
+ [8] LC_NAME=C                  LC_ADDRESS=C               LC_TELEPHONE=C             LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] stringr_1.4.0      harmony_0.1.0      Rcpp_1.0.8.3       cowplot_1.1.1      STutility_0.1.0    ggplot2_3.3.5      SeuratObject_4.0.4 Seurat_4.1.0      
+
+loaded via a namespace (and not attached):
+  [1] uuid_1.0-4            systemfonts_1.0.4     plyr_1.8.7            igraph_1.2.11         lazyeval_0.2.2        sp_1.4-6              splines_4.0.5         listenv_0.8.0         scattermore_0.8      
+ [10] digest_0.6.29         foreach_1.5.2         htmltools_0.5.2       viridis_0.6.2         magick_2.7.3          tiff_0.1-11           fansi_1.0.3           magrittr_2.0.3        tensor_1.5           
+ [19] cluster_2.1.1         doParallel_1.0.17     ROCR_1.0-11           globals_0.14.0        matrixStats_0.61.0    spatstat.sparse_2.1-0 jpeg_0.1-9            colorspace_2.0-3      ggrepel_0.9.1        
+ [28] xfun_0.30             dplyr_1.0.8           crayon_1.5.1          jsonlite_1.8.0        spatstat.data_2.1-4   zeallot_0.1.0         survival_3.2-10       zoo_1.8-9             iterators_1.0.14     
+ [37] glue_1.6.2            polyclip_1.10-0       gtable_0.3.0          leiden_0.3.9          future.apply_1.8.1    abind_1.4-5           scales_1.1.1          bezier_1.1.2          DBI_1.1.2            
+ [46] spatstat.random_2.2-0 miniUI_0.1.1.1        viridisLite_0.4.0     xtable_1.8-4          spData_2.0.1          units_0.8-0           reticulate_1.24       spatstat.core_2.4-0   proxy_0.4-26         
+ [55] spdep_1.2-3           akima_0.6-2.3         htmlwidgets_1.5.4     httr_1.4.2            RColorBrewer_1.1-2    wk_0.6.0              ellipsis_0.3.2        ica_1.0-2             farver_2.1.0         
+ [64] pkgconfig_2.0.3       uwot_0.1.11           deldir_1.0-6          utf8_1.2.2            labeling_0.4.2        tidyselect_1.1.2      rlang_1.0.2           reshape2_1.4.4        later_1.3.0          
+ [73] munsell_0.5.0         tools_4.0.5           cli_3.2.0             dbscan_1.1-10         generics_0.1.2        ggridges_0.5.3        evaluate_0.15         fastmap_1.1.0         yaml_2.3.5           
+ [82] goftest_1.2-3         knitr_1.38            fitdistrplus_1.1-8    rgl_0.108.3           s2_1.0.7              purrr_0.3.4           RANN_2.6.1            readbitmap_0.1.5      pbapply_1.5-0        
+ [91] future_1.24.0         nlme_3.1-152          mime_0.12             ggiraph_0.8.2         rstudioapi_0.13       compiler_4.0.5        plotly_4.10.0         png_0.1-7             e1071_1.7-9          
+[100] spatstat.utils_2.3-0  Morpho_2.9            tibble_3.1.6          stringi_1.7.6         RSpectra_0.16-0       lattice_0.20-41       Matrix_1.4-1          classInt_0.4-3        shinyjs_2.1.0        
+[109] vctrs_0.4.0           pillar_1.7.0          lifecycle_1.0.1       spatstat.geom_2.4-0   lmtest_0.9-40         RcppAnnoy_0.0.19      data.table_1.14.2     irlba_2.3.5           Rvcg_0.21            
+[118] raster_3.5-15         httpuv_1.6.5          patchwork_1.1.1       colorRamps_2.3        R6_2.5.1              imager_0.42.13        promises_1.2.0.1      KernSmooth_2.23-18    gridExtra_2.3        
+[127] bmp_0.3               parallelly_1.30.0     codetools_0.2-18      boot_1.3-27           MASS_7.3-53.1         assertthat_0.2.1      withr_2.5.0           sctransform_0.3.3     mgcv_1.8-34          
+[136] parallel_4.0.5        terra_1.5-21          grid_4.0.5            rpart_4.1-15          class_7.3-18          tidyr_1.2.0           rmarkdown_2.13        Rtsne_0.15            sf_1.0-7             
+[145] shiny_1.7.1          
