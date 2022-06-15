@@ -1,0 +1,3 @@
+1. Code to do TSO trimming of the reads and filtering afterwards. 
+2. ST Pipeline to process the reads to gene count matrix. This is for the host transcripts only.
+3. Identify putative microbial reads from the reads that are not mapped to host genome and demultiplexing their spatial barcode and their probe. 
