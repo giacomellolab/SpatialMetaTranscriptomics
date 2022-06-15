@@ -50,25 +50,25 @@ lableaf062 <- InputFromTable(infotable = infoTable,
 #Bacteria
 ```{r}
 bacteria <- list.files(path = "Arabidopsis/201002_191028-062/bacteria_210615", pattern = "usearch_unique_vs_NT_Jan2021.UMI_filtered.genus.spatial_pos.txt", recursive = FALSE, full.names = T)[6]
-OMNI06_bacteria <- c()
+EXP06_bacteria <- c()
 for (i in 1:length(bacteria)){
-  OMNI06_bacteria[[i]] <- read.csv(bacteria[[i]], row.names=1, sep=";", header = F)
+  EXP06_bacteria[[i]] <- read.csv(bacteria[[i]], row.names=1, sep=";", header = F)
 }
 
-colnames(OMNI06_bacteria[[1]]) <-lapply(lapply(OMNI06_bacteria[[1]][1,], function(x) paste(x,'_1')), function(x) str_remove(x, " "))
+colnames(EXP06_bacteria[[1]]) <-lapply(lapply(EXP06_bacteria[[1]][1,], function(x) paste(x,'_1')), function(x) str_remove(x, " "))
 
-for (i in  1:length(OMNI06_bacteria)){
+for (i in  1:length(EXP06_bacteria)){
   
-  OMNI06_bacteria[[i]] <- OMNI06_bacteria[[i]][-1,]
+  EXP06_bacteria[[i]] <- EXP06_bacteria[[i]][-1,]
 }
 
-brns <- unique(unlist(lapply(OMNI06_bacteria, rownames)))
+brns <- unique(unlist(lapply(EXP06_bacteria, rownames)))
 bcns <- colnames(lableaf062)
 bac_df <- data.frame(matrix(0, nrow = length(brns), ncol = length(bcns)))
 rownames(bac_df) <- brns
 colnames(bac_df) <- bcns
- for (i in c(1:length(OMNI06_bacteria))){
-  bac_df[rownames(OMNI06_bacteria[[i]]), colnames(OMNI06_bacteria[[i]])] = OMNI06_bacteria[[i]]
+ for (i in c(1:length(EXP06_bacteria))){
+  bac_df[rownames(EXP06_bacteria[[i]]), colnames(EXP06_bacteria[[i]])] = EXP06_bacteria[[i]]
 }
 rmoves <- setdiff(colnames(bac_df), colnames(lableaf062))
 bac_df_filt <- bac_df[ , -which(names(bac_df) %in% rmoves)]
@@ -203,7 +203,7 @@ plot <- FeatureOverlay(object = lableaf062,
 
 print(plot)
 ```
-#Stats from section 6
+#Stats from the section
 ```{r}
 
 DefaultAssay(lableaf062) <- "BACTERIA"
