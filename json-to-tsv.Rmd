@@ -1,0 +1,28 @@
+---
+title: "json-to-tsv"
+author: "Sami Saarenpää"
+date: '2022-10-30'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#json to tsv
+```{r, fig.height=6, fig.width=6, echo=F}
+
+js <- jsonlite::read_json(path = "/home/st-analysis_home/sami.saarenpaa/runs/Arabidopsis/revision/sterile_leaves_210615-330/imgs/A1_alignment.json")
+# Extract spot coordinates from json file
+df <- do.call(plyr::rbind.fill, sapply(js$oligo, function(ls) {
+  data.frame(ls)
+}))
+# Create a new selection file compatible with STUtility
+selection_file <- data.frame(x = df$col, y = df$row,
+                             x_new = df$col, y_new = df$row,
+                             pixel_x = df$imageX, pixel_y = df$imageY, 
+                             selection = ifelse(!is.na(df$tissue), 1, 0))
+# Export new selection file
+write.table(x = selection_file, file = "/home/st-analysis_home/sami.saarenpaa/runs/Arabidopsis/revision/sterile_leaves_210615-330/imgs/210615_330_A1_notissue_alignment.tsv", row.names = F, col.names = T, quote = F, sep = "\t")
+
+```
