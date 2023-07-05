@@ -16,25 +16,8 @@ suppressPackageStartupMessages({
   library(cowplot)
   library(harmony)  
   library(stringr)
+  library(pheatmap)
 })
-```
-
-#Processing of the json spot files from Loupe Browser to tsv files compatible with data output of ST Pipeline
-```{r, fig.height=6, fig.width=6, echo=F}
-
-js <- jsonlite::read_json(path = "Arabidopsis/10_45_45_all_samples_R/spotfiles/EXP12_128_A1_alignment.json")
-# Extract spot coordinates from json file
-df <- do.call(plyr::rbind.fill, sapply(js$oligo, function(ls) {
-  data.frame(ls)
-}))
-# Create a new selection file compatible with STUtility
-selection_file <- data.frame(x = df$col, y = df$row,
-                             x_new = df$col, y_new = df$row,
-                             pixel_x = df$imageX, pixel_y = df$imageY, 
-                             selection = ifelse(!is.na(df$tissue), 1, 0))
-# Export new selection file
-write.table(x = selection_file, file = "Arabidopsis/10_45_45_all_samples_R/spotfiles/EXP12_128_A1_alignment.tsv", row.names = F, col.names = T, quote = F, sep = "\t")
-
 ```
 
 #Metadata and infotable
@@ -61,9 +44,8 @@ infoTable <- data.frame(samples,
                         plant,
                         section_id,
                         stringsAsFactors = F)
+
 ```
-
-
 
 #Reading the data with STUtility and filtering
 ```{r, fig.width = 22, fig.height=18}
@@ -74,7 +56,8 @@ moderate_filter <- InputFromTable(infotable = infoTable,
                                  minUMICountsPerGene = 30,
                                  minUMICountsPerSpot = 10,
                                  minSpotsPerGene = 20,
-                                 minGenesPerSpot = 10)
+                                 minGenesPerSpot = 10,
+                                 disable.subset = F)
 
 ```
 
@@ -161,7 +144,7 @@ mtrbcpnoncod.moderate_filter.merged.PCA <- RunPCA(object = mtrbcpnoncod.moderate
 ```
 
 ##Normalisation with Harmony to remove batch effects between samples and UMAP visualisation
-```{r, fig.width= 5, fig.height=5}
+```{r, fig.width= 10, fig.height=5}
 #Harmony
 mtrbcpnoncod.moderate_filter.merged.PCA.harmony <- RunHarmony(mtrbcpnoncod.moderate_filter.merged.PCA, group.by.vars =c("slide_id", "plant", "leaf"), plot_convergence = TRUE, theta = c(4,4,4), assay.use = "SCT", reduction = "pca", dims.use = 1:8)
 
@@ -174,6 +157,13 @@ mtrbcpnoncod.moderate_filter.merged.PCA.harmony <- FindClusters(object = mtrbcpn
 DimPlot(object = mtrbcpnoncod.moderate_filter.merged.PCA.harmony, reduction = "umap", cols = col_vector1)
 
 ```
+
+```{r, fig.width= 10, fig.height=5}
+
+VlnPlot(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, features = c("nFeature_SCT", "nCount_SCT"), ncol = 2, pt.size = F, group.by = "leaf", log = T, same.y.lims = F, split.plot = T, split.by = "seurat_clusters") 
+
+```
+
 
 #Opacity change, masking the image
 ```{r, fig.width= 16, fig.height=13}
@@ -197,7 +187,7 @@ ImagePlot(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, type = "masked")
 ```
 
 ##UMAP clusters on tissue
-```{r, fig.width= 12, fig.height=9}
+```{r, fig.width= 6, fig.height=4.5}
 
 se <- mtrbcpnoncod.moderate_filter.merged.PCA.harmony
 col_vector1 <- c("#B8B42D", "#697A21", "#DC0073", "#DA7422", "#510D0A", "#3E363F", "#E49AB0")
@@ -375,6 +365,7 @@ for (i in 1:length(unique(se$seurat_clusters))){
 
 #Marker detection
 ```{r}
+DefaultAssay(se) <- "RNA"
 NormalizeData(se, assay = "RNA", normalization.method = "LogNormalize") 
 Markers.mtrbcpnoncod.5cl.RNA.poisson <- FindAllMarkers(se, test.use = "poisson", logfc.threshold = 0.15, min.pct = 0.02, only.pos = F, random.seed = 5678)
 markers <- Markers.mtrbcpnoncod.5cl.RNA.poisson$gene
@@ -424,6 +415,19 @@ FeatureOverlay(object = se,
                         pt.alpha = 1,
                         ncols = 4)
 
+```
+
+##Subset object based on the clusters
+```{r, fig.width= 12, fig.height=20}
+se.cl1 <- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony,spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$seurat_clusters == levels(mtrbcpnoncod.moderate_filter.merged.PCA.harmony$seurat_clusters)[[1]]])
+
+se.cl2 <- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony,spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$seurat_clusters == levels(mtrbcpnoncod.moderate_filter.merged.PCA.harmony$seurat_clusters)[[2]]])
+
+se.cl3 <- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony,spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$seurat_clusters == levels(mtrbcpnoncod.moderate_filter.merged.PCA.harmony$seurat_clusters)[[3]]])
+
+se.cl4 <- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony,spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$seurat_clusters == levels(mtrbcpnoncod.moderate_filter.merged.PCA.harmony$seurat_clusters)[[4]]])
+
+se.cl5 <- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony,spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$seurat_clusters == levels(mtrbcpnoncod.moderate_filter.merged.PCA.harmony$seurat_clusters)[[5]]])
 ```
 
 ##Number of genes and unique molecules -- Arabidopsis
@@ -618,6 +622,418 @@ plots[[i]] <- FeatureOverlay(object = mtrbcpnoncod.moderate_filter.merged.PCA.ha
 }
 ```
 
+#StereoScope
+```{r, fig.width= 3, fig.height=30}
+#Select spots in the filtered dataset
+D128A1_col<- colnames(SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[1]]]))
+#Read STSC output
+stsc_D128_A1<- read.table("Arabidopsis/revision/StereoScope/D128A1/W.2022-10-05161912.382856.tsv")
+stsc_D128_A1_row <- rownames(stsc_D128_A1)
+
+#Select the spots that are in the seurat object
+diffRem_D128A1<- setdiff(stsc_D128_A1_row,D128A1_col)
+#Select correct spots from STSC output and order them as in seurat object
+stsc_D128_A1 <- stsc_D128_A1[!(row.names(stsc_D128_A1) %in% diffRem_D128A1),]
+stsc_D128_A1 %>% arrange(factor(rownames(stsc_D128_A1), levels = D128A1_col))
+
+D128A2_col<- colnames(SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[2]]]))
+stsc_D128_A2<- read.table("Arabidopsis/revision/StereoScope/D128A2/W.2022-10-05161912.382856.tsv")
+stsc_D128_A2_row <- rownames(stsc_D128_A2)
+
+diffRem_D128A2<- setdiff(stsc_D128_A2_row,D128A2_col)
+
+stsc_D128_A2 <- stsc_D128_A2[!(row.names(stsc_D128_A2) %in% diffRem_D128A2),]
+stsc_D128_A2 %>% arrange(factor(rownames(stsc_D128_A2), levels = D128A2_col))
+
+D128B1_col<- colnames(SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[3]]]))
+stsc_D128_B1<- read.table("Arabidopsis/revision/StereoScope/D128B1/W.2022-10-05161912.382856.tsv")
+stsc_D128_B1_row <- rownames(stsc_D128_B1)
+
+diffRem_D128B1<- setdiff(stsc_D128_B1_row,D128B1_col)
+
+stsc_D128_B1 <- stsc_D128_B1[!(row.names(stsc_D128_B1) %in% diffRem_D128B1),]
+stsc_D128_B1 %>% arrange(factor(rownames(stsc_D128_B1), levels = D128B1_col))
+
+D128B2_col<- colnames(SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[4]]]))
+stsc_D128_B2<- read.table("Arabidopsis/revision/StereoScope/D128B2/W.2022-10-05161912.382856.tsv")
+stsc_D128_B2_row <- rownames(stsc_D128_B2)
+
+diffRem_D128B2<- setdiff(stsc_D128_B2_row,D128B2_col)
+
+stsc_D128_B2 <- stsc_D128_B2[!(row.names(stsc_D128_B2) %in% diffRem_D128B2),]
+stsc_D128_B2 %>% arrange(factor(rownames(stsc_D128_B2), levels = D128B2_col))
+
+D128C1_col<- colnames(SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[5]]]))
+stsc_D128_C1<- read.table("Arabidopsis/revision/StereoScope/D128C1/W.2022-10-05161912.382856.tsv")
+stsc_D128_C1_row <- rownames(stsc_D128_C1)
+
+diffRem_D128C1<- setdiff(stsc_D128_C1_row,D128C1_col)
+
+stsc_D128_C1 <- stsc_D128_C1[!(row.names(stsc_D128_C1) %in% diffRem_D128C1),]
+stsc_D128_C1 %>% arrange(factor(rownames(stsc_D128_C1), levels = D128C1_col))
+
+D128C2_col<- colnames(SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[6]]]))
+stsc_D128_C2<- read.table("Arabidopsis/revision/StereoScope/D128C2/W.2022-10-05161912.382856.tsv")
+stsc_D128_C2_row <- rownames(stsc_D128_C2)
+
+diffRem_D128C2<- setdiff(stsc_D128_C2_row,D128C2_col)
+
+stsc_D128_C2 <- stsc_D128_C2[!(row.names(stsc_D128_C2) %in% diffRem_D128C2),]
+stsc_D128_C2 %>% arrange(factor(rownames(stsc_D128_C2), levels = D128C2_col))
+
+D121A1_col<- colnames(SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[7]]]))
+stsc_D121_A1<- read.table("Arabidopsis/revision/StereoScope/D121A1/W.2022-10-05161912.382856.tsv")
+stsc_D121_A1_row <- rownames(stsc_D121_A1)
+
+diffRem_D121A1<- setdiff(stsc_D121_A1_row,D121A1_col)
+
+stsc_D121_A1 <- stsc_D121_A1[!(row.names(stsc_D121_A1) %in% diffRem_D121A1),]
+stsc_D121_A1 %>% arrange(factor(rownames(stsc_D121_A1), levels = D121A1_col))
+
+D121A2_col<- colnames(SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[8]]]))
+stsc_D121_A2<- read.table("Arabidopsis/revision/StereoScope/D121A2/W.2022-10-05161912.382856.tsv")
+stsc_D121_A2_row <- rownames(stsc_D121_A2)
+
+diffRem_D121A2<- setdiff(stsc_D121_A2_row,D121A2_col)
+
+stsc_D121_A2 <- stsc_D121_A2[!(row.names(stsc_D121_A2) %in% diffRem_D121A2),]
+stsc_D121_A2 %>% arrange(factor(rownames(stsc_D121_A2), levels = D121A2_col))
+
+D121B1_col<- colnames(SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[9]]]))
+stsc_D121_B1<- read.table("Arabidopsis/revision/StereoScope/D121B1/W.2022-10-05161912.382856.tsv")
+stsc_D121_B1_row <- rownames(stsc_D121_B1)
+
+diffRem_D121B1<- setdiff(stsc_D121_B1_row,D121B1_col)
+
+stsc_D121_B1 <- stsc_D121_B1[!(row.names(stsc_D121_B1) %in% diffRem_D121B1),]
+stsc_D121_B1 %>% arrange(factor(rownames(stsc_D121_B1), levels = D121B1_col))
+
+D121B2_col<- colnames(SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[10]]]))
+stsc_D121_B2<- read.table("Arabidopsis/revision/StereoScope/D121B2/W.2022-10-05161912.382856.tsv")
+stsc_D121_B2_row <- rownames(stsc_D121_B2)
+
+diffRem_D121B2<- setdiff(stsc_D121_B2_row,D121B2_col)
+
+stsc_D121_B2 <- stsc_D121_B2[!(row.names(stsc_D121_B2) %in% diffRem_D121B2),]
+stsc_D121_B2 %>% arrange(factor(rownames(stsc_D121_B2), levels = D121B2_col))
+
+
+D121C1_col<- colnames(SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[11]]]))
+stsc_D121_C1<- read.table("Arabidopsis/revision/StereoScope/D121C1/W.2022-10-05161912.382856.tsv")
+stsc_D121_C1_row <- rownames(stsc_D121_C1)
+
+diffRem_D121C1<- setdiff(stsc_D121_C1_row,D121C1_col)
+
+stsc_D121_C1 <- stsc_D121_C1[!(row.names(stsc_D121_C1) %in% diffRem_D121C1),]
+stsc_D121_C1 %>% arrange(factor(rownames(stsc_D121_C1), levels = D121C1_col))
+
+
+D121C2_col<- colnames(SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[12]]]))
+stsc_D121_C2<- read.table("Arabidopsis/revision/StereoScope/D121C2/W.2022-10-05161912.382856.tsv")
+stsc_D121_C2_row <- rownames(stsc_D121_C2)
+
+diffRem_D121C2<- setdiff(stsc_D121_C2_row,D121C2_col)
+
+stsc_D121_C2 <- stsc_D121_C2[!(row.names(stsc_D121_C2) %in% diffRem_D121C2),]
+stsc_D121_C2 %>% arrange(factor(rownames(stsc_D121_C2), levels = D121C2_col))
+
+
+D121D1_col<- colnames(SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[13]]]))
+stsc_D121_D1<- read.table("Arabidopsis/revision/StereoScope/D121D1/W.2022-10-05161912.382856.tsv")
+stsc_D121_D1_row <- rownames(stsc_D121_D1)
+
+diffRem_D121D1<- setdiff(stsc_D121_D1_row,D121D1_col)
+
+stsc_D121_D1 <- stsc_D121_D1[!(row.names(stsc_D121_D1) %in% diffRem_D121D1),]
+stsc_D121_D1 %>% arrange(factor(rownames(stsc_D121_D1), levels = D121D1_col))
+
+#Merge all the dataframes
+stsc <- rbind(stsc_D128_A1, stsc_D128_A2)
+stsc <- rbind(stsc, stsc_D128_B1)
+stsc <- rbind(stsc, stsc_D128_B2)
+stsc <- rbind(stsc, stsc_D128_C1)
+stsc <- rbind(stsc, stsc_D128_C2)
+stsc <- rbind(stsc, stsc_D121_A1)
+stsc <- rbind(stsc, stsc_D121_A2)
+stsc <- rbind(stsc, stsc_D121_B1)
+stsc <- rbind(stsc, stsc_D121_B2)
+stsc <- rbind(stsc, stsc_D121_C1)
+stsc <- rbind(stsc, stsc_D121_C2)
+stsc <- rbind(stsc, stsc_D121_D1)
+
+#Create STSC assay
+mtrbcpnoncod.moderate_filter.merged.PCA.harmony[['STSC']] <- CreateAssayObject(counts = t(stsc))
+DefaultAssay(mtrbcpnoncod.moderate_filter.merged.PCA.harmony) <- "STSC"
+#to prevent confusion we will rename the column "nFeature_RNA" to "n_celltypes" and the column "nCount_RNA" to "sum_pp"
+names(mtrbcpnoncod.moderate_filter.merged.PCA.harmony@meta.data)[18] <- "sum_pp"
+names(mtrbcpnoncod.moderate_filter.merged.PCA.harmony@meta.data)[19] <- "n_celltypes"
+
+```
+
+
+For a better visual representation of the distribution of the majority of proportion values for each cell type across the tissue, the values were scaled using quantile scaling. For each section and cell type the 95th percentile of the data was considered. The values were re-scaled to the maximum value for each cell type, resulting in values between 0 and 1 within the same function. 
+```{r, quantile scaling function}
+scaler <- function(x, q = 0.95) {x[x > quantile(x, q)] <- max(x); scales::rescale(x)}
+```
+
+```{r, fig.height=10, fig.width=1}
+#Subset per sample
+D128A1<- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[1]]])
+D128A2<- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[2]]])
+D128B1<- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[3]]])
+D128B2<- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[4]]])
+D128C1<- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[5]]])
+D128C2<- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[6]]])
+D121A1<- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[7]]])
+D121A2<- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[8]]])
+
+D121B1<- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[9]]])
+
+D121B2<- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[10]]])
+
+D121C1<- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[11]]])
+
+D121C2<- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[12]]])
+D121D1<- SubsetSTData(mtrbcpnoncod.moderate_filter.merged.PCA.harmony, spots = colnames(mtrbcpnoncod.moderate_filter.merged.PCA.harmony)[mtrbcpnoncod.moderate_filter.merged.PCA.harmony$section_id == infoTable$section_id[[13]]])
+
+#list the objects
+se.l <- c(D128A1, D128A2,D128B1, D128B2, D128C1, D128C2, D121A1, D121A2, D121B1, D121B2, D121C1, D121C2, D121D1)
+mat.l <- lapply(se.l, function(x){
+  as.data.frame(t(as.matrix(x@assays$STSC@data)))
+})
+#scale the values
+scale2 <- sapply(mat.l[[1]], scaler, q =0.95, USE.NAMES = TRUE)
+rownames(scale2) <- rownames(mat.l[[1]])
+D128A1[["scaled2"]]<-CreateAssayObject(counts = as.matrix(t(scale2)))
+DefaultAssay(D128A1) <- "scaled2"
+
+scale2 <- sapply(mat.l[[2]], scaler, q =0.95, USE.NAMES = TRUE)
+rownames(scale2) <- rownames(mat.l[[2]])
+D128A2[["scaled2"]]<-CreateAssayObject(counts = as.matrix(t(scale2)))
+DefaultAssay(D128A2) <- "scaled2"
+
+scale2 <- sapply(mat.l[[3]], scaler, q =0.95, USE.NAMES = TRUE)
+rownames(scale2) <- rownames(mat.l[[3]])
+D128B1[["scaled2"]]<-CreateAssayObject(counts = as.matrix(t(scale2)))
+DefaultAssay(D128B1) <- "scaled2"
+
+scale2 <- sapply(mat.l[[4]], scaler, q =0.95, USE.NAMES = TRUE)
+rownames(scale2) <- rownames(mat.l[[4]])
+D128B2[["scaled2"]]<-CreateAssayObject(counts = as.matrix(t(scale2)))
+DefaultAssay(D128B2) <- "scaled2"
+
+scale2 <- sapply(mat.l[[5]], scaler, q =0.95, USE.NAMES = TRUE)
+rownames(scale2) <- rownames(mat.l[[5]])
+D128C1[["scaled2"]]<-CreateAssayObject(counts = as.matrix(t(scale2)))
+DefaultAssay(D128C1) <- "scaled2"
+
+scale2 <- sapply(mat.l[[6]], scaler, q =0.95, USE.NAMES = TRUE)
+rownames(scale2) <- rownames(mat.l[[6]])
+D128C2[["scaled2"]]<-CreateAssayObject(counts = as.matrix(t(scale2)))
+DefaultAssay(D128C2) <- "scaled2"
+
+scale2 <- sapply(mat.l[[7]], scaler, q =0.95, USE.NAMES = TRUE)
+rownames(scale2) <- rownames(mat.l[[7]])
+D121A1[["scaled2"]]<-CreateAssayObject(counts = as.matrix(t(scale2)))
+DefaultAssay(D121A1) <- "scaled2"
+
+scale2 <- sapply(mat.l[[8]], scaler, q =0.95, USE.NAMES = TRUE)
+rownames(scale2) <- rownames(mat.l[[8]])
+D121A2[["scaled2"]]<-CreateAssayObject(counts = as.matrix(t(scale2)))
+DefaultAssay(D121A2) <- "scaled2"
+
+scale2 <- sapply(mat.l[[9]], scaler, q =0.95, USE.NAMES = TRUE)
+rownames(scale2) <- rownames(mat.l[[9]])
+D121B1[["scaled2"]]<-CreateAssayObject(counts = as.matrix(t(scale2)))
+DefaultAssay(D121B1) <- "scaled2"
+
+scale2 <- sapply(mat.l[[10]], scaler, q =0.95, USE.NAMES = TRUE)
+rownames(scale2) <- rownames(mat.l[[10]])
+D121B2[["scaled2"]]<-CreateAssayObject(counts = as.matrix(t(scale2)))
+DefaultAssay(D121B2) <- "scaled2"
+
+scale2 <- sapply(mat.l[[11]], scaler, q =0.95, USE.NAMES = TRUE)
+rownames(scale2) <- rownames(mat.l[[11]])
+D121C1[["scaled2"]]<-CreateAssayObject(counts = as.matrix(t(scale2)))
+DefaultAssay(D121C1) <- "scaled2"
+
+scale2 <- sapply(mat.l[[12]], scaler, q =0.95, USE.NAMES = TRUE)
+rownames(scale2) <- rownames(mat.l[[12]])
+D121C2[["scaled2"]]<-CreateAssayObject(counts = as.matrix(t(scale2)))
+DefaultAssay(D121C2) <- "scaled2"
+
+scale2 <- sapply(mat.l[[13]], scaler, q =0.95, USE.NAMES = TRUE)
+rownames(scale2) <- rownames(mat.l[[13]])
+D121D1[["scaled2"]]<-CreateAssayObject(counts = as.matrix(t(scale2)))
+DefaultAssay(D121D1) <- "scaled2"
+
+se.l <- list(D128A2,D128B1, D128B2, D128C1, D128C2, D121A1, D121A2, D121B1, D121B2, D121C1, D121C2, D121D1)
+#Merge the objects back together
+se.pp <- MergeSTData(D128A1, se.l)
+```
+
+
+#Opacity change, masking the image
+```{r, fig.width= 16, fig.height=13}
+
+se.pp <- LoadImages(se.pp, time.resolve = F, xdim = 900)
+se.pp <- MaskImages(se.pp, channels.use = 1, iso.blur = 3)
+
+st.object <- GetStaffli(se.pp) # Collect Staffli object from Seurat object
+
+# following part will modify the "raw" images
+# If you want to change the opacity for "masked" or "processed" images you will need to specify this
+st.object@rasterlists$masked <- lapply(st.object@rasterlists$masked, function(im) {
+  im <- apply(im, 2, function(x) {
+    scales::alpha(x, alpha = 0.6)
+  })
+  return(im)
+})
+se.pp@tools$Staffli <- st.object
+
+ImagePlot(se.pp, type = "masked")
+
+stsc_data <- t(as.data.frame(GetAssayData(object = se.pp, assay = "STSC")))
+write.csv(stsc_data, "Arabidopsis/revision/230305_semiwild_raw_stsc.csv", row.names = TRUE)
+
+```
+
+After each section was scaled individually the new objects with adjusted default assays for analysis can be combined again and plotted on the spot coordinates or the brightfield tissue images loaded previously if desired. 
+```{r, fig.height=6, fig.width=12}
+
+DefaultAssay(se.pp) <- "scaled2"
+
+
+FeatureOverlay(object = se.pp, 
+               features = c("X0","X1", "X2","X3","X4","X5","X6","X7","X8","X9","X10", "X11","X12","X13","X14","X15","X16", "X17", "X18"), 
+               cols =  c("#fffce8", "#B8B42D", "#B8B42D", "3e363f", "3e363f", "697a21", "697a21"), 
+               ncols = 5,
+               pt.size = 1.1,
+               sampleids = 1,
+               show.sb = FALSE,
+               value.scale = "all")
+
+
+FeatureOverlay(object = se.pp, 
+               features = c("X0","X1", "X2","X3","X4","X5","X6","X7","X8","X9","X10", "X11","X12","X13","X14","X15","X16", "X17", "X18"), 
+               cols =  c("#fffce8", "#B8B42D", "#B8B42D", "3e363f", "3e363f", "697a21", "697a21"), 
+               ncols = 5,
+               pt.size = 1.1,
+               sampleids = 5,
+               show.sb = FALSE,
+               value.scale = "all")
+
+```
+
+
+```{r, fig.height=10, fig.width=15}
+
+STSC.raw <- GetAssayData(se.pp, assay = "STSC")
+mesophyll <- colSums(STSC.raw[c(1, 2, 3, 5, 6,7,8,9,11,12,14),])
+vascular <- colSums(STSC.raw[c(4,10,18,15),])
+epidermis <- STSC.raw[13,]
+guard <- STSC.raw[16,]
+hydathode <- STSC.raw[17,]
+
+summed <- t(data.frame(mesophyll,vascular,epidermis,guard,hydathode))
+
+
+se.pp[['STSCSUM']] <- CreateAssayObject(counts = summed)
+DefaultAssay(se.pp) <- "STSCSUM"
+
+plots1 <- c()
+for (i in 1:length(section_id)){
+  plots1[[i]] =FeatureOverlay(object = SubsetSTData(se.pp, 
+                                                   spots = colnames(se.pp)[se.pp$section_id == infoTable$section_id[[i]] & se.pp@assays$STSCSUM@counts["mesophyll",] >= 0.1]),
+                             features = "mesophyll",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             cols = c("#fffce8", "#B8B42D", "#B8B42D", "3e363f", "3e363f", "697a21", "697a21"),
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+plots2 <- c()
+for (i in 1:length(section_id)){
+  plots2[[i]] =FeatureOverlay(object = SubsetSTData(se.pp, 
+                                                   spots = colnames(se.pp)[se.pp$section_id == infoTable$section_id[[i]] & se.pp@assays$STSCSUM@counts["vascular",] >= 0.1]),
+                             features = "vascular",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             cols = c("#fffce8", "#B8B42D", "#B8B42D", "3e363f", "3e363f", "697a21", "697a21"),
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+plots3 <- c()
+for (i in 1:length(section_id)){
+  plots3[[i]] =FeatureOverlay(object = SubsetSTData(se.pp, 
+                                                   spots = colnames(se.pp)[se.pp$section_id == infoTable$section_id[[i]] & se.pp@assays$STSCSUM@counts["epidermis",] >= 0.1]),
+                             features = "epidermis",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             cols = c("#fffce8", "#B8B42D", "#B8B42D", "3e363f", "3e363f", "697a21", "697a21"),
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+plots4 <- c()
+for (i in 1:length(section_id)){
+  plots4[[i]] =FeatureOverlay(object = SubsetSTData(se.pp, 
+                                                   spots = colnames(se.pp)[se.pp$section_id == infoTable$section_id[[i]] & se.pp@assays$STSCSUM@counts["guard",] >= 0.1]),
+                             features = "guard",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             cols = c("#fffce8", "#B8B42D", "#B8B42D", "3e363f", "3e363f", "697a21", "697a21"),
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+plots5 <- c()
+for (i in 1:length(section_id)){
+  plots5[[i]] =FeatureOverlay(object = SubsetSTData(se.pp, 
+                                                   spots = colnames(se.pp)[se.pp$section_id == infoTable$section_id[[i]] & se.pp@assays$STSCSUM@counts["hydathode",] >= 0.1]),
+                             features = "hydathode",
+                             pt.size = 1.1,
+                             show.sb = F,
+                             cols = c("#fffce8", "#B8B42D", "#B8B42D", "3e363f", "3e363f", "697a21", "697a21"),
+                             dark.theme = F,
+                             pt.alpha = 0.8)
+}
+
+```
+##Subset the clusters
+```{r, fig.height=6, fig.width=15}
+
+se1 <- SubsetSTData(se.pp, spots = colnames(se.pp)[se.pp$seurat_clusters == "0"])
+se2 <- SubsetSTData(se.pp, spots = colnames(se.pp)[se.pp$seurat_clusters == "1"])
+se3 <- SubsetSTData(se.pp, spots = colnames(se.pp)[se.pp$seurat_clusters == "2"])
+se4 <- SubsetSTData(se.pp, spots = colnames(se.pp)[se.pp$seurat_clusters == "3"])
+se5 <- SubsetSTData(se.pp, spots = colnames(se.pp)[se.pp$seurat_clusters == "4"])
+
+cl1Data <- as.data.frame(GetAssayData(se1, assay = "STSCSUM"))
+cl2Data <- as.data.frame(GetAssayData(se2, assay = "STSCSUM"))
+cl3Data <- as.data.frame(GetAssayData(se3, assay = "STSCSUM"))
+cl4Data <- as.data.frame(GetAssayData(se4, assay = "STSCSUM"))
+cl5Data <- as.data.frame(GetAssayData(se5, assay = "STSCSUM"))
+
+
+
+pheatmap(cl1Data, show_colnames = F, color=colorRampPalette(c("grey", "dark green"))(50))
+
+pheatmap(cl2Data, show_colnames = F, color=colorRampPalette(c("grey", "dark green"))(50))
+
+pheatmap(cl3Data, show_colnames = F, color=colorRampPalette(c("grey", "dark green"))(50))
+
+pheatmap(cl4Data, show_colnames = F, color=colorRampPalette(c("grey", "dark green"))(50))
+
+pheatmap(cl5Data, show_colnames = F, color=colorRampPalette(c("grey", "dark green"))(50))
+
+```
+
+
 ```{r}
 writeLines(capture.output(sessionInfo()), "Arabidopsis/10_45_45_all_samples_R/sessionInfo.txt")
+
 ```
+
+THE END
