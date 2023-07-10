@@ -1,0 +1,1375 @@
+---
+title: "Enrichment_final_v0.1"
+author: "Sami Saarenpää"
+date: "07/10/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Loading packages
+library(STutility)
+library(Hmisc)
+library(RColorBrewer)
+library(ggpubr)
+library(cowplot) 
+library(stringr)
+library(vegan)
+library(corrplot)
+library(sjmisc)
+library(psych)
+
+```
+
+
+#Infotable & data
+```{r}
+
+samples <- list.files(path = "~/Arabidopsis/201106_201108_191028-074-076/data/tsv-files/", pattern = ".tsv", recursive = T,full.names = T)[1:12]
+
+spotfiles <- list.files(path = "~/Arabidopsis/201106_201108_191028-074-076/spotfiles//", recursive = T,pattern = ".tsv", full.names = T)[1:12]
+
+imgs <- list.files(path = "~/Arabidopsis/201106_201108_191028-074-076/images/", pattern = ".jpg", recursive = T,full.names = T)[1:12]
+
+leaf <- c("L1", "L2", "L3","L1", "L2", "L3","L1", "L2", "L3","L1", "L2", "L3")
+slide <- c("191028-74", "191028-74", "191028-76", "191028-74", "191028-74", "191028-76","191028-74", "191028-76", "191028-76", "191028-74","191028-74", "191028-76")
+section <- c("L1B1_16S", "L2C2_16S", "L3D1_16S", "L1C1_ITS", "L2D2_ITS", "L3A2_ITS", "L1A2_p10", "L2B1_p10", "L3C2_p10", "L1A1_p100", "L2B2_p100", "L3C1_p100")
+pT <- c("0", "0","0", "0","0", "0", "10", "10", "10", "100", "100", "100")
+Probes <- c("16S", "16S", "16S","ITS", "ITS", "ITS","104545", "104545","104545","pT", "pT","pT")
+scaleVisium <- c(1,1,1,1,1,1,1,1, 1,1,1,1)
+
+infoTable <- data.frame(samples, 
+                        spotfiles, 
+                        imgs, 
+                        leaf,
+                        slide,
+                        scaleVisium, 
+                        section,
+                        pT,
+                        Probes,
+                        stringsAsFactors = F)
+```
+
+```{r}
+
+enrichment <- InputFromTable(infotable = infoTable, 
+                               transpose = F,
+                               platform = "Visium")
+                             #disable.subset = T)
+```
+
+#Filtering the data as in semiwild
+
+```{r, fig.width = 22, fig.height=18}
+  mt.genes<- grep(pattern = "^ATM", x = rownames(enrichment), value = TRUE)
+
+  chloro.genes <- grep(pattern = "^ATC", x = rownames(enrichment), value = TRUE)
+
+  rb.Genes <- as.list(c("AT1G72370", "AT3G04770", "AT1G58380", "AT1G59359", "AT2G41840", "AT3G57490", "AT1G58684", "AT1G58983", "AT2G31610", "AT3G53870", "AT5G35530", "AT3G04840", "AT4G34670", "AT2G17360", "AT5G07090", "AT5G58420", "AT2G37270", "AT3G11940", "AT4G31700", "AT5G10360", "AT1G48830", "AT3G02560", "AT5G16130", "AT5G20290", "AT5G59240", "AT4G12160", "AT5G15200", "AT5G39850", "AT4G25740", "AT5G41520", "AT5G52650", "AT3G48930", "AT4G30800", "AT5G23740", "AT1G15930", "AT1G80800", "AT2G32060", "AT3G60770", "AT4G00100", "AT2G36160", "AT3G11510", "AT3G52580", "AT1G04270", "AT5G09490", "AT5G09500", "AT5G09510", "AT5G43640", "AT5G63070", "AT1G07770", "AT2G19720", "AT2G39590", "AT3G46040", "AT4G29430", "AT5G59850", "AT2G09990", "AT3G04230", "AT5G18380", "AT2G04390", "AT2G05220", "AT3G10610", "AT5G04800", "AT1G22780", "AT1G34030", "AT4G09800", "AT3G02080", "AT5G15520", "AT5G61170", "AT3G45030", "AT3G47370", "AT5G62300", "AT3G27450", "AT3G53890", "AT5G27700", "AT3G09680", "AT5G02960", "AT3G04920", "AT5G28060", "AT2G16360", "AT2G21580", "AT3G30740", "AT4G34555", "AT4G39200", "AT2G40510", "AT2G40590", "AT3G56340", "AT2G45710", "AT3G61110", "AT5G47930", "AT1G23410", "AT2G47100", "AT3G62250", "AT3G10090", "AT5G03850", "AT5G64140", "AT3G43980", "AT3G44010", "AT4G33865", "AT2G19750", "AT4G29390", "AT5G56670", "AT2G40010", "AT3G09200", "AT3G11250", "AT1G01100", "AT4G00810", "AT5G47700", "AT5G24510", "AT3G49460", "AT2G27720", "AT2G27710", "AT3G28500", "AT3G44590", "AT5G40040", "AT4G25890", "AT5G57290", "AT1G43170", "AT1G61580", "AT5G42445", "AT3G09630", "AT1G35200", "AT2G24730", "AT5G02870", "AT3G25520", "AT5G39740", "AT5G40130", "AT1G18540", "AT1G74060", "AT1G74050", "AT1G80750", "AT2G01250", "AT2G44120", "AT3G13580", "AT2G47610", "AT3G62870", "AT2G18020", "AT3G51190", "AT4G36130", "AT1G33120", "AT1G33140", "AT4G10450", "AT1G14320", "AT1G26910", "AT1G66580", "AT1G08360", "AT2G27530", "AT5G22440", "AT2G42740", "AT3G58700", "AT4G18730", "AT5G45775", "AT2G37190", "AT3G53430", "AT5G60670", "AT3G48130", "AT3G49010", "AT3G48960", "AT5G23900", "AT3G07110", "AT3G24830", "AT4G13170", "AT5G48760", "AT2G20450", "AT4G27090", "AT4G16720", "AT4G17390", "AT1G27400", "AT1G67430", "AT2G47570", "AT3G05590", "AT5G27850", "AT1G29970", "AT2G34480", "AT3G14600", "AT1G02780", "AT3G16780", "AT4G02230", "AT1G09590", "AT1G09486", "AT1G09690", "AT1G31355", "AT1G57660", "AT3G57820", "AT1G57860", "AT1G02830", "AT3G05560", "AT5G27770", "AT1G04480", "AT2G33370", "AT3G04400", "AT2G39460", "AT3G55280", "AT2G36620", "AT3G53020", "AT2G44860", "AT3G49910", "AT5G67510", "AT2G32220", "AT3G22230", "AT4G15000", "AT1G12960", "AT1G23290", "AT1G70600", "AT2G19730", "AT3G06700", "AT3G06680", "AT1G36240", "AT1G77940", "AT3G18740", "AT2G19740", "AT4G26230", "AT5G56710", "AT4G18100", "AT5G46430", "AT1G26880", "AT1G69620", "AT3G28900", "AT3G09500", "AT2G39390", "AT3G55170", "AT5G02610", "AT1G07070", "AT1G41880", "AT1G74270", "AT3G55750", "AT2G37600", "AT3G53740", "AT5G02450", "AT3G23390", "AT4G14320", "AT1G15250", "AT1G52300", "AT3G16080", "AT2G35180", "AT3G10950", "AT3G60245", "AT2G43460", "AT3G59540", "AT2G25210", "AT3G02190", "AT4G31985", "AT2G36170", "AT3G52590", "AT1G56045", "AT3G08520", "AT3G11120", "AT3G56020"))
+  Araport11_rRNA.201606 <- read.table("~/Arabidopsis/Araport11_rRNA.201606.ID", quote="\"", comment.char="")
+  Araport11_rRNA.201606 <- as.list(Araport11_rRNA.201606$V1)
+  rb.Genes <- as.character(append(rb.Genes,Araport11_rRNA.201606))
+  
+  noncoding.genes <-  read.table("~/Arabidopsis/Araport11_non_coding.201606.ID", quote="\"", comment.char="")
+  noncoding.genes <- as.character(noncoding.genes$V1)
+```
+
+##Mt filter
+```{r, fig.width= 8, fig.height=20}
+cat("Number of spots before filtering:", ncol(enrichment), "\n")
+cat("Number of genes before filtering:", nrow(enrichment), "\n")
+mt.enrichment <- enrichment[setdiff(rownames(enrichment),mt.genes)]
+
+cat("Number of spots after contaminant filter:", ncol(mt.enrichment), "\n")
+cat("Number of genes after contaminant filter:", nrow(mt.enrichment), "\n")
+
+```
+##MtRb filter
+```{r, fig.width= 8, fig.height=20}
+
+mtrb.enrichment <- enrichment[setdiff(rownames(mt.enrichment),intersect(rownames(mt.enrichment), rb.Genes))]
+
+
+
+cat("Number of spots after contaminant filter:", ncol(mtrb.enrichment), "\n")
+cat("Number of genes before contaminant filter:", nrow(mtrb.enrichment), "\n")
+
+```
+##MtRbCp filter
+```{r, fig.width= 8, fig.height=20}
+
+mtrbcp.enrichment <- mtrb.enrichment[setdiff(rownames(mtrb.enrichment),chloro.genes)]
+cat("Number of spots after contaminant filter:", ncol(mtrbcp.enrichment), "\n")
+cat("Number of genes before contaminant filter:", nrow(mtrbcp.enrichment), "\n")
+```
+##Extra genes from Haim
+```{r, fig.width= 8, fig.height=20}
+
+mtrbcpnoncod.enrichment <- mtrbcp.enrichment[setdiff(rownames(mtrbcp.enrichment),intersect(rownames(mtrbcp.enrichment), noncoding.genes))]
+cat("Number of spots after contaminant filter:", ncol(mtrbcpnoncod.enrichment), "\n")
+cat("Number of genes before contaminant filter:", nrow(mtrbcpnoncod.enrichment), "\n")
+```
+
+##Filter low number spots and genes
+```{r, fig.width= 8, fig.height=20}
+
+mtrbcpnoncod.enrichment.subset <- SubsetSTData(mtrbcpnoncod.enrichment, expression = nFeature_RNA >= 10)
+
+
+cat("Number of spots after subsetting filter:", ncol(mtrbcpnoncod.enrichment.subset), "\n")
+cat("Number of genes before subsetting filter:", nrow(mtrbcpnoncod.enrichment.subset), "\n")
+
+```
+
+
+##Arabidopsis correlation plots after filtering
+```{r, fig.height=15, fig.width=15}
+#Subset created object
+subset.enrichment.section <- c()
+for (i in 1:length(infoTable$section)){
+#print(section_id[[i]])
+subset.enrichment.section[[i]] <- SubsetSTData(mtrbcpnoncod.enrichment.subset, spots = colnames(mtrbcpnoncod.enrichment.subset)[mtrbcpnoncod.enrichment.subset$section == infoTable$section[i]])
+}
+
+#log transformed
+enrichment.subset.list.log <- c()
+for (i in 1:length(section)){
+  enrichment.subset.list.log[[i]]<-log10(rowSums(subset.enrichment.section[[i]]@assays$RNA@counts)+1)
+}
+
+enrichment.log.df <- t(do.call(rbind.data.frame, enrichment.subset.list.log))
+colnames(enrichment.log.df) <- section
+rownames(enrichment.log.df) <- names(enrichment.subset.list.log[[1]])
+enrichment.log.df <- as.data.frame(enrichment.log.df)
+
+```
+###Correlation plots between 10% and 100% poly-T, mtrbcpnoncod filter, log scale
+```{r, fig.height=5, fig.width=5}
+#qqplot_filename <- paste("~/Arabidopsis/revision/221122_L1_corrplot_100vs10Host_log10_filt.pdf")
+#pdf(file = qqplot_filename, useDingbats = F)
+ggplot(enrichment.log.df, aes(x=L1A2_p10, y=L1A1_p100)) +
+  geom_point(size=0.5, shape=23) +
+  geom_smooth(method="lm", se=TRUE, fullrange=FALSE, level=0.95, linetype="dashed",color="darkred") + 
+  stat_cor( method="pearson", label.x =0, label.y=6 )
+#dev.off()
+
+#qqplot_filename <- paste("~/Arabidopsis/revision/221122_L2_corrplot_100vs10Host_log10_filt.pdf")
+#pdf(file = qqplot_filename, useDingbats = F)
+ggplot(enrichment.log.df, aes(x=L2B1_p10, y=L2B2_p100)) +
+  geom_point(size=0.5, shape=23) +
+  geom_smooth(method="lm", se=TRUE, fullrange=FALSE, level=0.95, linetype="dashed",color="darkred") + 
+  stat_cor( method="pearson", label.x =0, label.y=6 )
+#dev.off()
+
+#qqplot_filename <- paste("~/Arabidopsis/revision/221122_L3_corrplot_100vs10Host_log10_filt.pdf")
+#pdf(file = qqplot_filename, useDingbats = F)
+ggplot(enrichment.log.df, aes(x=L3C2_p10, y=L3C1_p100)) +
+  geom_point(size=0.5, shape=23) +
+  geom_smooth(method="lm", se=TRUE, fullrange=FALSE, level=0.95, linetype="dashed",color="darkred") + 
+  stat_cor( method="pearson", label.x =0, label.y=6 )
+#dev.off()
+
+
+pairwise_cor2 <- rcorr(as.matrix(enrichment.log.df))
+pairwise_cor2$P[is.na(pairwise_cor2$P)] <- 0
+
+
+  #Leaf 1
+  
+
+  #qqplot_filename <- paste("~/Arabidopsis/enrichment-EXP9_10/plant_corr/220426_L1_corr_full_all_log10_counts.pdf")
+  #pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(1,4,7,10),c(1,4,7,10)], 
+                 lower.col = "black", 
+                 number.cex = 1,
+                 p.mat = pairwise_cor2$P[c(1,4,7,10),c(1,4,7,10)], 
+                 #sig.level = c(.001, .01, .05), 
+                 #insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  #dev.off()
+  
+  #Leaf 2
+
+  #qqplot_filename <- paste("~/Arabidopsis/enrichment-EXP9_10/plant_corr/220426_L2_corr_full_all_log10_counts.pdf")
+  #pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(2,5,8,11),c(2,5,8,11)], 
+                 lower.col = "black", 
+                 number.cex = 1, 
+                 p.mat = pairwise_cor2$P[c(2,5,8,11),c(2,5,8,11)], 
+                 #sig.level = c(.001, .01, .05), 
+                 #insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  #dev.off()
+  
+  #Leaf 3
+  
+  #qqplot_filename <- paste("~/Arabidopsis/enrichment-EXP9_10/plant_corr/220426_L3_corr_full_all_log10_counts.pdf")
+  #pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(3,6,9,12),c(3,6,9,12)], 
+                 lower.col = "black", 
+                 number.cex = 1,
+                 p.mat = pairwise_cor2$P[c(3,6,9,12),c(3,6,9,12)], 
+                 #sig.level = c(.001, .01, .05), 
+                 #insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  #dev.off()
+
+```
+
+#Microbial processing
+##Number of unique taxa
+```{r}
+abundance_matrix_fungi <-read.table("~/Arabidopsis/enrichment-EXP9_10/abundance_matrix_rawCounts_fungi.csv")
+no_taxa_fungi <- unique(t(as.data.frame(str_split(rownames(abundance_matrix_fungi), " L"))[1,])[,1])
+# unique fungal taxa: 1660
+abundance_matrix_bacteria <-read.table("~/Arabidopsis/enrichment-EXP9_10/abundance_matrix_rawCounts.csv")
+no_taxa_bact <-  unique(t(as.data.frame(str_split(rownames(abundance_matrix_bacteria), " L"))[1,])[,1])
+# unique fungal taxa: 1681
+
+```
+
+##Bacterial enrichment analysis
+###Load & filter microbial data
+```{r, fig.height=10, fig.width=10}
+
+microbes <- list.files(path = "~/Arabidopsis/enrichment-EXP9_10/enrichment_data/", pattern = ".txt", recursive = T,full.names = T)
+microbes <- microbes[1:12]
+
+microbes.list<- c()
+fungi.list <- c()
+bact.list <- c()
+
+for (l in 1:length(microbes)){
+  microbes.list[[l]] <- read.csv(microbes[[l]], header=FALSE, row.names=NULL, sep=";")
+  microbes.list[[l]]$Leaf <- as.factor(leaf[[l]])
+  microbes.list[[l]]$pT <- as.factor(pT[[l]])
+  colnames(microbes.list[[l]]) <- c("Counts", "Super_kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species", "Leaf", "pT")
+  microbes.list[[l]]$Probes <- as.factor(Probes[[l]])
+  microbes.list[[l]]$section <- as.factor(section[[l]])
+  microbes.list[[l]]$Log10 <- log10(microbes.list[[l]]$Counts + 1)
+  microbes.list[[l]] <-  microbes.list[[l]][!microbes.list[[l]]$Phylum=="Streptophyta",]
+  microbes.list[[l]]$Speciespath <- paste(microbes.list[[l]]$Super_kingdom, microbes.list[[l]]$Phylum, microbes.list[[l]]$Class, microbes.list[[l]]$Order, microbes.list[[l]]$Family, microbes.list[[l]]$Genus,microbes.list[[l]]$Species)
+  fungi.list[[l]] <- microbes.list[[l]][grep(x = microbes.list[[l]]$Phylum, pattern = "myc"),]
+  fungi.list[[l]] <- fungi.list[[l]][(fungi.list[[l]]$Super_kingdom=="Eukaryota"),]
+  bact.list[[l]] <- microbes.list[[l]][(microbes.list[[l]]$Super_kingdom=="Bacteria" | microbes.list[[l]]$Super_kingdom=="Archaea"),]
+  rownames(fungi.list[[l]]) <- fungi.list[[l]]$Speciespath
+  rownames(bact.list[[l]]) <- bact.list[[l]]$Speciespath
+}
+
+fungi_df <- do.call("rbind", list(fungi.list[[1]], fungi.list[[2]], fungi.list[[3]] , fungi.list[[4]], fungi.list[[5]], fungi.list[[6]], fungi.list[[7]], fungi.list[[8]], fungi.list[[9]], fungi.list[[10]], fungi.list[[11]], fungi.list[[12]]))
+fungi_df_filt <- fungi_df[fungi_df$Counts > 5, ]
+bact_df <- do.call("rbind", list(bact.list[[1]], bact.list[[2]], bact.list[[3]] , bact.list[[4]], bact.list[[5]], bact.list[[6]], bact.list[[7]], bact.list[[8]], bact.list[[9]], bact.list[[10]], bact.list[[11]], bact.list[[12]]))
+bact_df_filt <- bact_df[bact_df$Counts > 5, ]
+
+```
+
+
+###Enrichment - bacterial analysis
+```{r fig.height=7, fig.width=7, message=TRUE, warning=TRUE}
+full_enrichment <- bact_df
+
+num_of_top_taxa_qqplot <- 1681
+
+ ### create a matrix of the three Arrays, combining all samples
+  summary_df <- data.frame("Counts"=NULL, "Taxa"=NULL, "Rank"=NULL, "Probes"=NULL, "Leaf"=NULL)
+  for (i in c(2:7)){
+    for (Probes in unique(full_enrichment$Probes)){
+      for (Leaf in unique(full_enrichment$Leaf)){
+        for (Taxa in unique(full_enrichment[full_enrichment$Probes == Probes & full_enrichment$Leaf == Leaf,i])){
+          if (str_contains(x = Taxa, pattern = "unclassified")){
+            next() # filter unclassified reads
+          }
+          temp_data <- full_enrichment[full_enrichment$Probes == Probes & full_enrichment$Leaf == Leaf,]
+          Counts <- sum(temp_data$Counts[temp_data[,i]==Taxa])
+          Rank <- colnames(temp_data)[i]
+          temp_df <- cbind(Counts, Taxa, Rank, Probes, Leaf)
+          summary_df <- rbind(summary_df, temp_df) 
+        }
+      }
+    }
+  }
+  
+  
+  summary_df$Counts <- as.numeric(as.character(summary_df$Counts))
+  summary_df_bac <- summary_df
+  
+  
+  
+  ## Convert data frame for subsequent diversity / correlation analyses
+  
+  summary_df_genus <- summary_df[summary_df$Rank=="Genus",]
+  
+  genera_sample1 <- paste(as.character(unique(summary_df_genus$Taxa[summary_df_genus$Leaf=="L1"])), "L1")
+  genera_sample2 <- paste(as.character(unique(summary_df_genus$Taxa[summary_df_genus$Leaf=="L2"])), "L2")
+  genera_sample3 <- paste(as.character(unique(summary_df_genus$Taxa[summary_df_genus$Leaf=="L3"])), "L3")
+  
+  ##number of taxa captured
+  #L1
+  leaf1_16S <- summary_df_genus[summary_df_genus$Leaf=="L1" & summary_df_genus$Probes=="16S" & summary_df_genus$Counts>0,]
+  taxaL1_16S <- unique(leaf1_16S$Taxa)
+  #1014
+  leaf1_ITS <- summary_df_genus[summary_df_genus$Leaf=="L1" & summary_df_genus$Probes=="ITS" & summary_df_genus$Counts>0,]
+  taxaL1_ITS <- unique(leaf1_ITS$Taxa)
+  #494
+  leaf1_pT <- summary_df_genus[summary_df_genus$Leaf=="L1" & summary_df_genus$Probes=="pT" & summary_df_genus$Counts>0,]
+  taxaL1_pT <- unique(leaf1_pT$Taxa)
+  #479
+  leaf1_mm <- summary_df_genus[summary_df_genus$Leaf=="L1" & summary_df_genus$Probes=="104545" & summary_df_genus$Counts>0,]
+  taxaL1_mm <- unique(leaf1_mm$Taxa)
+  #846
+  
+  
+  #L2
+  leaf2_16S <- summary_df_genus[summary_df_genus$Leaf=="L2" & summary_df_genus$Probes=="16S" & summary_df_genus$Counts>0,]
+  taxaL2_16S <- unique(leaf2_16S$Taxa)
+  #873
+  leaf2_ITS <- summary_df_genus[summary_df_genus$Leaf=="L2" & summary_df_genus$Probes=="ITS" & summary_df_genus$Counts>0,]
+  taxaL2_ITS <- unique(leaf2_ITS$Taxa)
+  #566
+  leaf2_pT <- summary_df_genus[summary_df_genus$Leaf=="L2" & summary_df_genus$Probes=="pT" & summary_df_genus$Counts>0,]
+  taxaL2_pT <- unique(leaf2_pT$Taxa)
+  #713
+  leaf2_mm <- summary_df_genus[summary_df_genus$Leaf=="L2" & summary_df_genus$Probes=="104545" & summary_df_genus$Counts>0,]
+  taxaL2_mm <- unique(leaf2_mm$Taxa)
+  #962
+  
+    #L3
+  leaf3_16S <- summary_df_genus[summary_df_genus$Leaf=="L3" & summary_df_genus$Probes=="16S" & summary_df_genus$Counts>0,]
+  taxaL3_16S <- unique(leaf3_16S$Taxa)
+  #807
+  leaf3_ITS <- summary_df_genus[summary_df_genus$Leaf=="L3" & summary_df_genus$Probes=="ITS" & summary_df_genus$Counts>0,]
+  taxaL3_ITS <- unique(leaf3_ITS$Taxa)
+  #356
+  leaf3_pT <- summary_df_genus[summary_df_genus$Leaf=="L3" & summary_df_genus$Probes=="pT" & summary_df_genus$Counts>0,]
+  taxaL3_pT <- unique(leaf3_pT$Taxa)
+  #324
+  leaf3_mm <- summary_df_genus[summary_df_genus$Leaf=="L3" & summary_df_genus$Probes=="104545" & summary_df_genus$Counts>0,]
+  taxaL3_mm <- unique(leaf3_mm$Taxa)
+  #709
+  
+  
+  
+  # create abundance matrix for all treatments, pooled samples
+  abundance_matrix <- as.data.frame(matrix(nrow = length(c(genera_sample1, genera_sample2, genera_sample3)), ncol = 4))
+  colnames(abundance_matrix) <- unique(summary_df_genus$Probes)
+  rownames(abundance_matrix) <- (c(genera_sample1, genera_sample2, genera_sample3))
+  
+  for (Leaf in unique(summary_df_genus$Leaf)){
+    for (Probes in unique(summary_df_genus$Probes)){
+      for (Taxa in unique(summary_df_genus$Taxa[summary_df_genus$Leaf==Leaf])){
+        count <- sum(summary_df_genus$Counts[summary_df_genus$Taxa==Taxa & summary_df_genus$Probes==Probes &
+                                               summary_df_genus$Leaf==Leaf ])
+        
+        abundance_matrix[rownames(abundance_matrix)==paste(Taxa,Leaf), colnames(abundance_matrix)==Probes] <- count
+      }
+    }
+  }
+      # create abundance matrix for all treatments, each sample separately  (as a column)
+  summary_df_genus$Probes_by_sample <- paste(summary_df_genus$Probes, summary_df_genus$Leaf)
+  
+  abundance_matrix_Probes_by_treat <- as.data.frame(matrix(nrow = length(unique(summary_df_genus$Taxa)), ncol = length(unique(summary_df_genus$Probes_by_sample))))
+  colnames(abundance_matrix_Probes_by_treat) <- unique(summary_df_genus$Probes_by_sample)
+  rownames(abundance_matrix_Probes_by_treat) <- as.character(unique(summary_df_genus$Taxa))
+  
+  for (Probes_by_sample in unique(summary_df_genus$Probes_by_sample)){
+    for (Taxa in as.character(unique(summary_df_genus$Taxa))){
+      count <- sum(summary_df_genus$Counts[summary_df_genus$Taxa==Taxa 
+                                           & summary_df_genus$Probes_by_sample==Probes_by_sample ])
+      
+      abundance_matrix_Probes_by_treat[rownames(abundance_matrix_Probes_by_treat)==paste(Taxa), colnames(abundance_matrix_Probes_by_treat)==Probes_by_sample] <- count
+    }
+  }
+  # alpha diversity
+  sample1_rows <- grepl(rownames(abundance_matrix), pattern = "L1")
+  sample2_rows <- grepl(rownames(abundance_matrix), pattern = "L2")
+  sample3_rows <- grepl(rownames(abundance_matrix), pattern = "L3")
+  
+  sample1_shannon <- diversity(t(abundance_matrix[sample1_rows,]), index = "shannon")
+  sample2_shannon <- diversity(t(abundance_matrix[sample2_rows,]), index = "shannon")
+  sample3_shannon <- diversity(t(abundance_matrix[sample3_rows,]), index = "shannon")
+  all_samples_shannon <- diversity(t(abundance_matrix_Probes_by_treat), index = "shannon")
+  
+  all_samples_shannon_df <- as.data.frame(all_samples_shannon)
+  row_names_split <- unlist(strsplit(x = rownames(all_samples_shannon_df), split = " "))
+  all_samples_shannon_df$Probes <- row_names_split[seq(from = 1, to = length(row_names_split), by = 2)]
+  all_samples_shannon_df$Leaf <- row_names_split[seq(from = 2, to = length(row_names_split), by = 2)]
+  
+  #mean of the ITS values
+  mean_its <- mean(all_samples_shannon_df$shannon[4:6])
+    #2.76
+  
+  #mean of the poly-T values
+  mean_pt <- mean(all_samples_shannon_df$shannon[10:12])
+    #3.70  
+  
+  colnames(all_samples_shannon_df) <- c("shannon","Probes","Leaf")
+  
+    ggplot(data = all_samples_shannon_df, aes(x = Probes, y = shannon, colour = Leaf))+
+    geom_point(size = 3) +
+    scale_color_manual(values = c("#7fc97f", "#beaed4",  "#fdc086")) + 
+    theme_classic()
+```
+###Enrichment - bacterial analysis - Bray-Curtis
+```{r fig.height=7, fig.width=7, message=TRUE, warning=TRUE}
+#beta diversity: Bray Curtis
+  
+  sample1_bray <- 1- (vegdist(x = t(abundance_matrix[sample1_rows,]), method = "bray", diag = T))
+  sample2_bray <- 1 - (vegdist(x = t(abundance_matrix[sample2_rows,]), method = "bray"))
+  sample3_bray <- 1 - (vegdist(x = t(abundance_matrix[sample3_rows,]), method = "bray"))
+  all_samples_bray <- 1 - (vegdist(x = t(abundance_matrix_Probes_by_treat), method = "bray"))
+
+  #All samples
+  Probes_sample_names <- colnames(as.matrix(all_samples_bray))
+  Probes_samples_split <- unlist(strsplit(x = Probes_sample_names, split = " "))
+  Probes_col_names <- Probes_samples_split[seq(from = 1, to = length(Probes_samples_split), by = 2)]
+  sample_col_names <- Probes_samples_split[seq(from = 2, to = length(Probes_samples_split), by = 2)]
+  annot <- data.frame(Probes = Probes_col_names)
+  rownames(annot) <- colnames(as.matrix(all_samples_bray))
+    
+  heat_color <- colorRampPalette(c("#fffce8","#fffce8",  "#697a21", "#697a21"), space = "rgb")(100)  
+  final_color_vec_pheat <- list(Probes = c("pT" = "#9A031E", "104545"="#FB8B24", "16S"="#E36414", "ITS"="#5F0F40"))
+  
+  #pdf(file = "~/Arabidopsis/enrichment-EXP9_10/220426_bacteria_bray-curtis_all.pdf", useDingbats = F)
+  plot1 <- pheatmap::pheatmap(as.matrix(all_samples_bray), color = heat_color, 
+                             annotation_col = annot, annotation_row = annot, display_numbers = TRUE,
+                             show_colnames = F, show_rownames = F, annotation_colors = final_color_vec_pheat)
+  print(plot1)
+  #dev.off()
+```
+
+###Enrichment - bacterial analysis, taxonomic levels
+```{r fig.height=7, fig.width=7, message=TRUE, warning=TRUE}
+  ## enrichment part
+  enrichment_df <- data.frame("Counts"=NULL, "Probes"=NULL, "Leaf"=NULL, "Rank"=NULL)
+  
+  for (p in unique(summary_df$Probes)){
+    for (l in unique(summary_df$Leaf)){
+      for (r in unique(summary_df$Rank)){
+        Counts <- sum(summary_df$Counts[summary_df$Probes==p & summary_df$Leaf==l & summary_df$Rank==r])
+        temp_df <- cbind(Counts, p, l, r)
+        enrichment_df <- rbind(enrichment_df, temp_df)
+      }
+    }
+  }
+  
+  enrichment_df$p <- factor(enrichment_df$p, levels = c("16S", "104545", "ITS", "pT"))
+  enrichment_df$r <- factor(enrichment_df$r, levels=c("Genus", "Family", "Order", "Class", "Phylum", "Superkingdom"))
+  
+  enrichment_df$Counts <- as.numeric(as.character(enrichment_df$Counts))
+  
+  # facet by sample
+  #pdf(file = "~/Arabidopsis/enrichment-EXP9_10/220426_bacteria_enrichment.pdf", useDingbats = F)
+  ploten <-ggplot(data = enrichment_df, aes(x = r, y = Counts))+
+    geom_point(aes(color = p)) +
+    geom_line(aes(color = p, group = p)) +
+    theme_classic() +
+    scale_color_manual(values = c("#ca0020", "#1f78b4", "#238b45", "#969696")) +
+    facet_grid(. ~ l) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  
+  print(ploten)
+ # dev.off
+
+  
+  ## enrichment, fold change calculation and plotting
+  enrichment_df_no_polyT <- enrichment_df[enrichment_df$p !=  "pT",]
+  enrichment_df_no_polyT$fold_change <- enrichment_df_no_polyT$Counts / enrichment_df$Counts[enrichment_df$p ==  "pT"]
+  
+  
+  
+  
+  # facet by sample
+#pdf(file = "~/Arabidopsis/enrichment-EXP9_10/220426_bacteria_foldchange.pdf", useDingbats = F)
+  plotf <- ggplot(data =enrichment_df_no_polyT, aes(x = r, y = fold_change))+
+    geom_point(aes(color = p)) +
+    geom_line(aes(color = p, group = p)) +
+    scale_color_manual(values = c("#ca0020", "#1f78b4", "#a6cee3", "#238b45")) +
+    #geom_boxplot(aes(fill = Probes))+
+    theme_classic() +
+    facet_grid(. ~ l) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  
+print(plotf)
+#dev.off  
+  
+```
+
+##Bacterial data spatially
+
+```{r}
+bacteria <- list.files(path = "~/Arabidopsis/enrichment-EXP9_10/EXP_9_10/Bacteria/", pattern = "Bacterial_genus.spatial_pos", recursive = TRUE, full.names = T)
+enrichment_bacteria <- c()
+for (i in 1:length(bacteria)){
+  enrichment_bacteria[[i]] <- read.csv(bacteria[[i]], row.names=1, sep=";", header = F)
+}
+colnames(enrichment_bacteria[[1]]) <-lapply(lapply(enrichment_bacteria[[1]][1,], function(x) paste(x,'_1')), function(x) str_remove(x, " "))
+colnames(enrichment_bacteria[[2]]) <-lapply(lapply(enrichment_bacteria[[2]][1,], function(x) paste(x,'_2')), function(x) str_remove(x, " "))
+colnames(enrichment_bacteria[[3]]) <-lapply(lapply(enrichment_bacteria[[3]][1,], function(x) paste(x,'_3')), function(x) str_remove(x, " "))
+colnames(enrichment_bacteria[[4]]) <-lapply(lapply(enrichment_bacteria[[4]][1,], function(x) paste(x,'_4')), function(x) str_remove(x, " "))
+colnames(enrichment_bacteria[[5]]) <-lapply(lapply(enrichment_bacteria[[5]][1,], function(x) paste(x,'_5')), function(x) str_remove(x, " "))
+colnames(enrichment_bacteria[[6]]) <-lapply(lapply(enrichment_bacteria[[6]][1,], function(x) paste(x,'_6')), function(x) str_remove(x, " "))
+colnames(enrichment_bacteria[[7]]) <-lapply(lapply(enrichment_bacteria[[7]][1,], function(x) paste(x,'_7')), function(x) str_remove(x, " "))
+colnames(enrichment_bacteria[[8]]) <-lapply(lapply(enrichment_bacteria[[8]][1,], function(x) paste(x,'_8')), function(x) str_remove(x, " "))
+colnames(enrichment_bacteria[[9]]) <-lapply(lapply(enrichment_bacteria[[9]][1,], function(x) paste(x,'_9')), function(x) str_remove(x, " "))
+colnames(enrichment_bacteria[[10]]) <-lapply(lapply(enrichment_bacteria[[10]][1,], function(x) paste(x,'_10')), function(x) str_remove(x, " "))
+colnames(enrichment_bacteria[[11]]) <-lapply(lapply(enrichment_bacteria[[11]][1,], function(x) paste(x,'_11')), function(x) str_remove(x, " "))
+colnames(enrichment_bacteria[[12]]) <-lapply(lapply(enrichment_bacteria[[12]][1,], function(x) paste(x,'_12')), function(x) str_remove(x, " "))
+
+for (i in  1:length(enrichment_bacteria)){
+  
+  enrichment_bacteria[[i]] <- enrichment_bacteria[[i]][-1,]
+}
+
+brns <- unique(unlist(lapply(enrichment_bacteria, rownames)))
+bcns <- colnames(mtrbcpnoncod.enrichment.subset)
+bac_df <- data.frame(matrix(0, nrow = length(brns), ncol = length(bcns)))
+rownames(bac_df) <- brns
+colnames(bac_df) <- bcns
+for (i in c(1:length(enrichment_bacteria))){
+  bac_df[rownames(enrichment_bacteria[[i]]), colnames(enrichment_bacteria[[i]])] = enrichment_bacteria[[i]]
+}
+orig_s <- colnames(mtrbcpnoncod.enrichment.subset)
+orig_b <- colnames(bac_df)
+rmoves <- setdiff(orig_b, orig_s)
+#rmoves_s <- setdiff(orig_s, orig_b)
+bac_df_filt <- bac_df[ , -which(names(bac_df) %in% rmoves)]
+
+bac_df_filt[is.na(bac_df_filt)]<- 0
+bac_df_filt <- as.data.frame(sapply(bac_df_filt, as.numeric))
+rownames(bac_df_filt) <- rownames(bac_df) 
+
+mtrbcpnoncod.enrichment.subset[['BACTERIA']] <- CreateAssayObject(counts = bac_df_filt)
+
+
+DefaultAssay(mtrbcpnoncod.enrichment.subset) <- "BACTERIA"
+
+```
+###All taxa
+####Bacterial correlation plots before filtering
+```{r, fig.height=15, fig.width=15}
+DefaultAssay(mtrbcpnoncod.enrichment.subset) <- "BACTERIA"
+#Subset created object
+subset.enrichment.section <- c()
+for (i in 1:length(infoTable$section)){
+#print(section_id[[i]])
+subset.enrichment.section[[i]] <- SubsetSTData(mtrbcpnoncod.enrichment.subset, spots = colnames(mtrbcpnoncod.enrichment.subset)[mtrbcpnoncod.enrichment.subset$section == infoTable$section[i]])
+}
+
+#log transformed
+enrichment.subset.list.log <- c()
+for (i in 1:length(section)){
+  enrichment.subset.list.log[[i]]<-log10(rowSums(subset.enrichment.section[[i]]@assays$BACTERIA@counts)+1)
+}
+
+enrichment.log.df <- t(do.call(rbind.data.frame, enrichment.subset.list.log))
+colnames(enrichment.log.df) <- section
+rownames(enrichment.log.df) <- names(enrichment.subset.list.log[[1]])
+enrichment.log.df <- as.data.frame(enrichment.log.df)
+
+```
+####Correlation plots between 10% and 100% poly-T, mtrbcpnoncod filter, log scale
+```{r, fig.height=5, fig.width=5}
+#qqplot_filename <- paste("~/Arabidopsis/revision/221123_L1_corrplot_100vs45Bacteria_log10_filt.pdf")
+#pdf(file = qqplot_filename, useDingbats = F)
+ggplot(enrichment.log.df, aes(x=L1A2_p10, y=L1B1_16S)) +
+  geom_point(size=0.5, shape=23) +
+  geom_smooth(method="lm", se=TRUE, fullrange=FALSE, level=0.95, linetype="dashed",color="darkred") + 
+  stat_cor( method="pearson", label.x =0, label.y=6 )
+#dev.off()
+
+
+#qqplot_filename <- paste("~/Arabidopsis/revision/221123_L2_corrplot_100vs45Bacteria_log10_filt.pdf")
+#pdf(file = qqplot_filename, useDingbats = F)
+ggplot(enrichment.log.df, aes(x=L2B1_p10, y=L2C2_16S)) +
+  geom_point(size=0.5, shape=23) +
+  geom_smooth(method="lm", se=TRUE, fullrange=FALSE, level=0.95, linetype="dashed",color="darkred") + 
+  stat_cor( method="pearson", label.x =0, label.y=6 )
+#dev.off()
+
+#qqplot_filename <- paste("~/Arabidopsis/revision/221123_L3_corrplot_100vs45Bacteria_log10_filt.pdf")
+#pdf(file = qqplot_filename, useDingbats = F)
+ggplot(enrichment.log.df, aes(x=L3C2_p10, y=L3D1_16S)) +
+  geom_point(size=0.5, shape=23) +
+  geom_smooth(method="lm", se=TRUE, fullrange=FALSE, level=0.95, linetype="dashed",color="darkred") + 
+  stat_cor( method="pearson", label.x =0, label.y=6 )
+#dev.off()
+```
+```{r}
+
+pairwise_cor2 <- rcorr(as.matrix(enrichment.log.df))
+pairwise_cor2$P[is.na(pairwise_cor2$P)] <- 0
+
+  #Leaf 1
+
+  #qqplot_filename <- paste("~/Arabidopsis/revision/221123_L1_bacteria_100vs45_log10_filtered.pdf")
+  #pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(1,4,7,10),c(1,4,7,10)], 
+                 lower.col = "black", 
+                 number.cex = 1,
+                 p.mat = pairwise_cor2$P[c(1,4,7,10),c(1,4,7,10)], 
+                 sig.level = c(.001, .01, .05), 
+                 insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+ # dev.off()
+  
+  #Leaf 2
+  
+ # qqplot_filename <- paste("~/Arabidopsis/revision/221123_L2_bacteria_100vs45_log10_filtered.pdf")
+#  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(2,5,8,11),c(2,5,8,11)], 
+                 lower.col = "black", 
+                 number.cex = 1, 
+                 p.mat = pairwise_cor2$P[c(2,5,8,11),c(2,5,8,11)], 
+                 sig.level = c(.001, .01, .05), 
+                 insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+ # dev.off()
+  
+  #Leaf 3
+
+  
+#  qqplot_filename <- paste("~/Arabidopsis/revision/221123_L3_bacteria_100vs45_log10_filtered.pdf")
+#  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(3,6,9,12),c(3,6,9,12)], 
+                 lower.col = "black", 
+                 number.cex = 1,
+                 p.mat = pairwise_cor2$P[c(3,6,9,12),c(3,6,9,12)], 
+                 sig.level = c(.001, .01, .05), 
+                 insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+#  dev.off()
+```
+
+##Bacterial top 500 taxa
+```{r, fig.height=5, fig.width=5}
+num_of_top_taxa_qqplot <- 500
+top_taxa_bac <- unique(summary_df_bac$Taxa[summary_df$Rank=="Genus"][order(summary_df_bac$Counts[summary_df_bac$Rank=="Genus"], decreasing = T)])[1:num_of_top_taxa_qqplot]
+
+mtrbcpnoncod.enrichment.subset_top500_bac <- SubsetSTData(mtrbcpnoncod.enrichment.subset, features = top_taxa_bac)
+
+```
+
+###Bacterial correlation plots before filtering
+```{r, fig.height=15, fig.width=15}
+DefaultAssay(mtrbcpnoncod.enrichment.subset_top500_bac) <- "BACTERIA"
+#Subset created object
+subset.enrichment.section <- c()
+for (i in 1:length(infoTable$section)){
+#print(section_id[[i]])
+subset.enrichment.section[[i]] <- SubsetSTData(mtrbcpnoncod.enrichment.subset_top500_bac, spots = colnames(mtrbcpnoncod.enrichment.subset_top500_bac)[mtrbcpnoncod.enrichment.subset_top500_bac$section == infoTable$section[i]])
+}
+
+#log transformed
+enrichment.subset.list.log <- c()
+for (i in 1:length(section)){
+  enrichment.subset.list.log[[i]]<-log10(rowSums(subset.enrichment.section[[i]]@assays$BACTERIA@counts)+1)
+}
+
+enrichment.log.df <- t(do.call(rbind.data.frame, enrichment.subset.list.log))
+colnames(enrichment.log.df) <- section
+rownames(enrichment.log.df) <- names(enrichment.subset.list.log[[1]])
+enrichment.log.df <- as.data.frame(enrichment.log.df)
+
+```
+
+```{r}
+
+pairwise_cor2 <- rcorr(as.matrix(enrichment.log.df))
+pairwise_cor2$P[is.na(pairwise_cor2$P)] <- 0
+
+  #Leaf 1
+
+  #qqplot_filename <- paste("~/Arabidopsis/revision/221123_L1_bacteria_100vs45_log10_filtered.pdf")
+  #pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(1,4,7,10),c(1,4,7,10)], 
+                 lower.col = "black", 
+                 number.cex = 1,
+                 p.mat = pairwise_cor2$P[c(1,4,7,10),c(1,4,7,10)], 
+                 sig.level = c(.001, .01, .05), 
+                 insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+ # dev.off()
+  
+  #Leaf 2
+
+ # qqplot_filename <- paste("~/Arabidopsis/revision/221123_L2_bacteria_100vs45_log10_filtered.pdf")
+#  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(2,5,8,11),c(2,5,8,11)], 
+                 lower.col = "black", 
+                 number.cex = 1, 
+                 p.mat = pairwise_cor2$P[c(2,5,8,11),c(2,5,8,11)], 
+                 sig.level = c(.001, .01, .05), 
+                 insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+ # dev.off()
+  
+  #Leaf 3
+
+  
+#  qqplot_filename <- paste("~/Arabidopsis/revision/221123_L3_bacteria_100vs45_log10_filtered.pdf")
+#  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(3,6,9,12),c(3,6,9,12)], 
+                 lower.col = "black", 
+                 number.cex = 1,
+                 p.mat = pairwise_cor2$P[c(3,6,9,12),c(3,6,9,12)], 
+                 sig.level = c(.001, .01, .05), 
+                 insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+#  dev.off()
+```
+##Bacterial top 20 taxa
+```{r, fig.height=5, fig.width=5}
+num_of_top_taxa_qqplot <- 20
+top_taxa_bac <- unique(summary_df_bac$Taxa[summary_df$Rank=="Genus"][order(summary_df_bac$Counts[summary_df_bac$Rank=="Genus"], decreasing = T)])[1:num_of_top_taxa_qqplot]
+
+mtrbcpnoncod.enrichment.subset_top20_bac <- SubsetSTData(mtrbcpnoncod.enrichment.subset, features = top_taxa_bac)
+
+```
+
+###Bacterial correlation plots before filtering
+```{r, fig.height=15, fig.width=15}
+DefaultAssay(mtrbcpnoncod.enrichment.subset_top20_bac) <- "BACTERIA"
+#Subset created object
+subset.enrichment.section <- c()
+for (i in 1:length(infoTable$section)){
+#print(section_id[[i]])
+subset.enrichment.section[[i]] <- SubsetSTData(mtrbcpnoncod.enrichment.subset_top20_bac, spots = colnames(mtrbcpnoncod.enrichment.subset_top20_bac)[mtrbcpnoncod.enrichment.subset_top20_bac$section == infoTable$section[i]])
+}
+
+#log transformed
+enrichment.subset.list.log <- c()
+for (i in 1:length(section)){
+  enrichment.subset.list.log[[i]]<-log10(rowSums(subset.enrichment.section[[i]]@assays$BACTERIA@counts)+1)
+}
+
+enrichment.log.df <- t(do.call(rbind.data.frame, enrichment.subset.list.log))
+colnames(enrichment.log.df) <- section
+rownames(enrichment.log.df) <- names(enrichment.subset.list.log[[1]])
+enrichment.log.df <- as.data.frame(enrichment.log.df)
+
+```
+
+```{r}
+
+pairwise_cor2 <- rcorr(as.matrix(enrichment.log.df))
+pairwise_cor2$P[is.na(pairwise_cor2$P)] <- 0
+
+  #Leaf 1
+
+  #qqplot_filename <- paste("~/Arabidopsis/revision/221123_L1_bacteria_100vs45_log10_filtered.pdf")
+  #pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(1,4,7,10),c(1,4,7,10)], 
+                 lower.col = "black", 
+                 number.cex = 1,
+                 p.mat = pairwise_cor2$P[c(1,4,7,10),c(1,4,7,10)], 
+                 sig.level = c(.001, .01, .05), 
+                 insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+ # dev.off()
+  
+  #Leaf 2
+
+ # qqplot_filename <- paste("~/Arabidopsis/revision/221123_L2_bacteria_100vs45_log10_filtered.pdf")
+#  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(2,5,8,11),c(2,5,8,11)], 
+                 lower.col = "black", 
+                 number.cex = 1, 
+                 p.mat = pairwise_cor2$P[c(2,5,8,11),c(2,5,8,11)], 
+                 sig.level = c(.001, .01, .05), 
+                 insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+ # dev.off()
+  
+  #Leaf 3
+
+  
+#  qqplot_filename <- paste("~/Arabidopsis/revision/221123_L3_bacteria_100vs45_log10_filtered.pdf")
+#  pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(3,6,9,12),c(3,6,9,12)], 
+                 lower.col = "black", 
+                 number.cex = 1,
+                 p.mat = pairwise_cor2$P[c(3,6,9,12),c(3,6,9,12)], 
+                 sig.level = c(.001, .01, .05), 
+                 insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+#  dev.off()
+```
+
+#Fungal enrichment analysis
+```{r fig.height=7, fig.width=7, message=TRUE, warning=TRUE}
+
+full_enrichment <- fungi_df_filt
+num_of_top_taxa_qqplot <- 1660
+
+ ### create a matrix of the three Arrays, combining all samples
+  summary_df <- data.frame("Counts"=NULL, "Taxa"=NULL, "Rank"=NULL, "Probes"=NULL, "Leaf"=NULL)
+  for (i in c(2:7)){
+    for (Probes in unique(full_enrichment$Probes)){
+      for (Leaf in unique(full_enrichment$Leaf)){
+        for (Taxa in unique(full_enrichment[full_enrichment$Probes == Probes & full_enrichment$Leaf == Leaf,i])){
+          if (str_contains(x = Taxa, pattern = "unclassified")){
+            next() # filter unclassified reads
+          }
+          temp_data <- full_enrichment[full_enrichment$Probes == Probes & full_enrichment$Leaf == Leaf,]
+          Counts <- sum(temp_data$Counts[temp_data[,i]==Taxa])
+          Rank <- colnames(temp_data)[i]
+          temp_df <- cbind(Counts, Taxa, Rank, Probes, Leaf)
+          summary_df <- rbind(summary_df, temp_df) 
+        }
+      }
+    }
+  }
+  
+  summary_df$Counts <- as.numeric(as.character(summary_df$Counts))
+  summary_df_fun <- summary_df
+  
+  
+  ## Convert data frame for subsequent diversity / correlation analyses
+  
+  summary_df_genus <- summary_df[summary_df$Rank=="Genus",]
+  
+  genera_sample1 <- paste(as.character(unique(summary_df_genus$Taxa[summary_df_genus$Leaf=="L1"])), "L1")
+  genera_sample2 <- paste(as.character(unique(summary_df_genus$Taxa[summary_df_genus$Leaf=="L2"])), "L2")
+  genera_sample3 <- paste(as.character(unique(summary_df_genus$Taxa[summary_df_genus$Leaf=="L3"])), "L3")
+  
+  
+   ##number of taxa captured
+  #L1
+  leaf1_16S <- summary_df_genus[summary_df_genus$Leaf=="L1" & summary_df_genus$Probes=="16S" & summary_df_genus$Counts>0,]
+  taxaL1_16S <- unique(leaf1_16S$Taxa)
+  #110
+  leaf1_ITS <- summary_df_genus[summary_df_genus$Leaf=="L1" & summary_df_genus$Probes=="ITS" & summary_df_genus$Counts>0,]
+  taxaL1_ITS <- unique(leaf1_ITS$Taxa)
+  #304
+  leaf1_pT <- summary_df_genus[summary_df_genus$Leaf=="L1" & summary_df_genus$Probes=="pT" & summary_df_genus$Counts>0,]
+  taxaL1_pT <- unique(leaf1_pT$Taxa)
+  #38
+  leaf1_mm <- summary_df_genus[summary_df_genus$Leaf=="L1" & summary_df_genus$Probes=="104545" & summary_df_genus$Counts>0,]
+  taxaL1_mm <- unique(leaf1_mm$Taxa)
+  #163
+  
+  
+  #L2
+  leaf2_16S <- summary_df_genus[summary_df_genus$Leaf=="L2" & summary_df_genus$Probes=="16S" & summary_df_genus$Counts>0,]
+  taxaL2_16S <- unique(leaf2_16S$Taxa)
+  #60
+  leaf2_ITS <- summary_df_genus[summary_df_genus$Leaf=="L2" & summary_df_genus$Probes=="ITS" & summary_df_genus$Counts>0,]
+  taxaL2_ITS <- unique(leaf2_ITS$Taxa)
+  #304
+  leaf2_pT <- summary_df_genus[summary_df_genus$Leaf=="L2" & summary_df_genus$Probes=="pT" & summary_df_genus$Counts>0,]
+  taxaL2_pT <- unique(leaf2_pT$Taxa)
+  #62
+  leaf2_mm <- summary_df_genus[summary_df_genus$Leaf=="L2" & summary_df_genus$Probes=="104545" & summary_df_genus$Counts>0,]
+  taxaL2_mm <- unique(leaf2_mm$Taxa)
+  #179
+  
+    #L3
+  leaf3_16S <- summary_df_genus[summary_df_genus$Leaf=="L3" & summary_df_genus$Probes=="16S" & summary_df_genus$Counts>0,]
+  taxaL3_16S <- unique(leaf3_16S$Taxa)
+  #52
+  leaf3_ITS <- summary_df_genus[summary_df_genus$Leaf=="L3" & summary_df_genus$Probes=="ITS" & summary_df_genus$Counts>0,]
+  taxaL3_ITS <- unique(leaf3_ITS$Taxa)
+  #253
+  leaf3_pT <- summary_df_genus[summary_df_genus$Leaf=="L3" & summary_df_genus$Probes=="pT" & summary_df_genus$Counts>0,]
+  taxaL3_pT <- unique(leaf3_pT$Taxa)
+  #24
+  leaf3_mm <- summary_df_genus[summary_df_genus$Leaf=="L3" & summary_df_genus$Probes=="104545" & summary_df_genus$Counts>0,]
+  taxaL3_mm <- unique(leaf3_mm$Taxa)
+  #97
+```
+
+##Enrichment - fungal analysis processing
+```{r fig.height=7, fig.width=7, message=TRUE, warning=TRUE}  
+  
+  # create abundance matrix for all treatments, pooled samples
+  abundance_matrix <- as.data.frame(matrix(nrow = length(c(genera_sample1, genera_sample2, genera_sample3)), ncol = 4))
+  colnames(abundance_matrix) <- unique(summary_df_genus$Probes)
+  rownames(abundance_matrix) <- (c(genera_sample1, genera_sample2, genera_sample3))
+  
+  for (Leaf in unique(summary_df_genus$Leaf)){
+    for (Probes in unique(summary_df_genus$Probes)){
+      for (Taxa in unique(summary_df_genus$Taxa[summary_df_genus$Leaf==Leaf])){
+        count <- sum(summary_df_genus$Counts[summary_df_genus$Taxa==Taxa & summary_df_genus$Probes==Probes &
+                                               summary_df_genus$Leaf==Leaf ])
+        
+        abundance_matrix[rownames(abundance_matrix)==paste(Taxa,Leaf), colnames(abundance_matrix)==Probes] <- count
+      }
+    }
+  }
+      # create abundance matrix for all treatments, each sample separately  (as a column)
+  summary_df_genus$Probes_by_sample <- paste(summary_df_genus$Probes, summary_df_genus$Leaf)
+  
+  abundance_matrix_Probes_by_treat <- as.data.frame(matrix(nrow = length(unique(summary_df_genus$Taxa)), ncol = length(unique(summary_df_genus$Probes_by_sample))))
+  colnames(abundance_matrix_Probes_by_treat) <- unique(summary_df_genus$Probes_by_sample)
+  rownames(abundance_matrix_Probes_by_treat) <- as.character(unique(summary_df_genus$Taxa))
+  
+  for (Probes_by_sample in unique(summary_df_genus$Probes_by_sample)){
+    for (Taxa in as.character(unique(summary_df_genus$Taxa))){
+      count <- sum(summary_df_genus$Counts[summary_df_genus$Taxa==Taxa 
+                                           & summary_df_genus$Probes_by_sample==Probes_by_sample ])
+      
+      abundance_matrix_Probes_by_treat[rownames(abundance_matrix_Probes_by_treat)==paste(Taxa), colnames(abundance_matrix_Probes_by_treat)==Probes_by_sample] <- count
+    }
+  }
+  
+```
+
+
+##Enrichment - fungal analysis Bray-Curtis
+```{r fig.height=7, fig.width=7, message=TRUE, warning=TRUE}
+    
+  sample1_rows <- grepl(rownames(abundance_matrix), pattern = "L1")
+  sample2_rows <- grepl(rownames(abundance_matrix), pattern = "L2")
+  sample3_rows <- grepl(rownames(abundance_matrix), pattern = "L3")
+  
+#beta diversity: Bray Curtis
+  
+  sample1_bray <- 1-(vegdist(x = t(abundance_matrix[sample1_rows,]), method = "bray", diag = T))
+  sample2_bray <- 1-(vegdist(x = t(abundance_matrix[sample2_rows,]), method = "bray", diag = T))
+  sample3_bray <- 1-(vegdist(x = t(abundance_matrix[sample3_rows,]), method = "bray", diag = T))
+  all_samples_bray <- 1-(vegdist(x = t(abundance_matrix_Probes_by_treat), method = "bray", diag = T))
+  
+   heat_color <- colorRampPalette(c("#fffce8", "#F7F7FF", "#F7F7FF","#FFD151", "#FFD151"), space = "rgb")(100)
+
+
+  #All samples
+  Probes_sample_names <- colnames(as.matrix(all_samples_bray))
+  Probes_samples_split <- unlist(strsplit(x = Probes_sample_names, split = " "))
+  Probes_col_names <- Probes_samples_split[seq(from = 1, to = length(Probes_samples_split), by = 2)]
+  sample_col_names <- Probes_samples_split[seq(from = 2, to = length(Probes_samples_split), by = 2)]
+  annot <- data.frame(Probes = Probes_col_names)
+  rownames(annot) <- colnames(as.matrix(all_samples_bray))
+  
+  heat_color <- colorRampPalette(c("#fffce8","#fffce8",  "#697a21", "#697a21"), space = "rgb")(100)  
+  final_color_vec_pheat <- list(Probes = c("pT" = "#9A031E", "104545"="#FB8B24", "16S"="#E36414", "ITS"="#5F0F40"))
+  
+#   pdf(file = "~/Arabidopsis/enrichment-EXP9_10/220426_fungi_bray-curtis_all.pdf", useDingbats = F)
+  plot1 <- pheatmap::pheatmap(as.matrix(all_samples_bray), color = heat_color, 
+                             annotation_col = annot, annotation_row = annot, display_numbers = TRUE,
+                             show_colnames = F, show_rownames = F, annotation_colors = final_color_vec_pheat)
+  print(plot1)
+#  dev.off()
+  
+
+```
+
+##Enrichment - fungal analysis, taxonomic analysis
+```{r fig.height=7, fig.width=7, message=TRUE, warning=TRUE}
+  ## enrichment part
+  enrichment_df <- data.frame("Counts"=NULL, "Probes"=NULL, "Leaf"=NULL, "Rank"=NULL)
+  
+  for (p in unique(summary_df$Probes)){
+    for (l in unique(summary_df$Leaf)){
+      for (r in unique(summary_df$Rank)){
+        Counts <- sum(summary_df$Counts[summary_df$Probes==p & summary_df$Leaf==l & summary_df$Rank==r])
+        temp_df <- cbind(Counts, p, l, r)
+        enrichment_df <- rbind(enrichment_df, temp_df)
+      }
+    }
+  }
+  
+  enrichment_df$p <- factor(enrichment_df$p, levels = c("16S", "104545", "ITS", "pT"))
+  enrichment_df$r <- factor(enrichment_df$r, levels=c("Genus", "Family", "Order", "Class", "Phylum", "Superkingdom"))
+  
+  enrichment_df$Counts <- as.numeric(as.character(enrichment_df$Counts))
+  
+  # facet by sample
+ # pdf(file = "~/Arabidopsis/enrichment-EXP9_10/220426_fungi_enrichment.pdf", useDingbats = F)
+  ploten <-ggplot(data = enrichment_df, aes(x = r, y = Counts))+
+    geom_point(aes(color = p)) +
+    geom_line(aes(color = p, group = p)) +
+    theme_classic() +
+    scale_color_manual(values = c("#ca0020", "#1f78b4", "#238b45", "#969696")) +
+    facet_grid(. ~ l) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  print(ploten)
+#  dev.off()
+
+  
+  ## enrichment, fold change calculation and plotting
+  enrichment_df_no_polyT <- enrichment_df[enrichment_df$p !=  "pT",]
+  enrichment_df_no_polyT$fold_change <- enrichment_df_no_polyT$Counts / enrichment_df$Counts[enrichment_df$p ==  "pT"]
+  
+  
+  
+  
+  # facet by sample
+#pdf(file = "~/Arabidopsis/enrichment-EXP9_10/220426_fungi_foldchange.pdf", useDingbats = F)
+  plotf <- ggplot(data =enrichment_df_no_polyT, aes(x = r, y = fold_change))+
+    geom_point(aes(color = p)) +
+    geom_line(aes(color = p, group = p)) +
+    scale_color_manual(values = c("#ca0020", "#1f78b4", "#a6cee3", "#238b45")) +
+    #geom_boxplot(aes(fill = Probes))+
+    theme_classic() +
+    facet_grid(. ~ l) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+print(plotf)
+#dev.off()  
+  
+```
+
+
+
+##Fungal data spatial
+###Read the spatial data
+```{r}
+
+ITS <- list.files(path = "~/Arabidopsis/enrichment-EXP9_10/EXP_9_10/ITS/", pattern = "ITS_genus.spatial_pos", recursive = TRUE, full.names = T)
+EXP_ITS <- c()
+for (i in 1:length(ITS)){
+  EXP_ITS[[i]] <- read.csv(ITS[[i]], row.names=1, sep=";", header = F)
+}
+colnames(EXP_ITS[[1]]) <-lapply(lapply(EXP_ITS[[1]][1,], function(x) paste(x,'_1')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[2]]) <-lapply(lapply(EXP_ITS[[2]][1,], function(x) paste(x,'_2')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[3]]) <-lapply(lapply(EXP_ITS[[3]][1,], function(x) paste(x,'_3')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[4]]) <-lapply(lapply(EXP_ITS[[4]][1,], function(x) paste(x,'_4')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[5]]) <-lapply(lapply(EXP_ITS[[5]][1,], function(x) paste(x,'_5')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[6]]) <-lapply(lapply(EXP_ITS[[6]][1,], function(x) paste(x,'_6')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[7]]) <-lapply(lapply(EXP_ITS[[7]][1,], function(x) paste(x,'_7')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[8]]) <-lapply(lapply(EXP_ITS[[8]][1,], function(x) paste(x,'_8')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[9]]) <-lapply(lapply(EXP_ITS[[9]][1,], function(x) paste(x,'_9')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[10]]) <-lapply(lapply(EXP_ITS[[10]][1,], function(x) paste(x,'_10')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[11]]) <-lapply(lapply(EXP_ITS[[11]][1,], function(x) paste(x,'_11')), function(x) str_remove(x, " "))
+colnames(EXP_ITS[[12]]) <-lapply(lapply(EXP_ITS[[12]][1,], function(x) paste(x,'_12')), function(x) str_remove(x, " "))
+
+for (i in  1:length(EXP_ITS)){
+  
+  EXP_ITS[[i]] <- EXP_ITS[[i]][-1,]
+}
+
+irns <- unique(unlist(lapply(EXP_ITS, rownames)))
+icns <- colnames(mtrbcpnoncod.enrichment.subset)
+its_df <- data.frame(matrix(0, nrow = length(irns), ncol = length(icns)))
+rownames(its_df) <- irns
+colnames(its_df) <- icns
+for (i in c(1:length(EXP_ITS))){
+  its_df[rownames(EXP_ITS[[i]]), colnames(EXP_ITS[[i]])] = EXP_ITS[[i]]
+}
+orig_si <- colnames(mtrbcpnoncod.enrichment.subset)
+orig_bi <- colnames(its_df)
+rmovesi <- setdiff(orig_bi, orig_si)
+its_df_filt <- its_df[ , -which(names(its_df) %in% rmovesi)]
+its_df_filt[is.na(its_df_filt)]<- 0
+its_df_filt <- as.data.frame(sapply(its_df_filt, as.numeric))
+rownames(its_df_filt) <- rownames(its_df) 
+
+mtrbcpnoncod.enrichment.subset[['ITS']] <- CreateAssayObject(counts = its_df_filt)
+DefaultAssay(mtrbcpnoncod.enrichment.subset) <- "ITS"
+
+
+
+```
+####Fungal correlation plots all taxa
+```{r, fig.height=15, fig.width=15}
+DefaultAssay(mtrbcpnoncod.enrichment.subset) <- "ITS"
+#Subset created object
+subset.enrichment.section <- c()
+for (i in 1:length(infoTable$section)){
+#print(section_id[[i]])
+subset.enrichment.section[[i]] <- SubsetSTData(mtrbcpnoncod.enrichment.subset, spots = colnames(mtrbcpnoncod.enrichment.subset)[mtrbcpnoncod.enrichment.subset$section == infoTable$section[i]])
+}
+
+#Raw counts
+enrichment.genes.list <- c()
+for (i in 1:length(section)){
+  enrichment.genes.list[[i]] <- rowSums(subset.enrichment.section[[i]]@assays$ITS@counts)
+}
+
+enrichment.df <- t(do.call(rbind.data.frame, enrichment.genes.list))
+colnames(enrichment.df) <- section
+rownames(enrichment.df) <- names(enrichment.genes.list[[1]])
+enrichment.df <- as.data.frame(enrichment.df)
+
+#log transformed
+enrichment.subset.list.log <- c()
+for (i in 1:length(section)){
+  enrichment.subset.list.log[[i]]<-log10(rowSums(subset.enrichment.section[[i]]@assays$ITS@counts)+1)
+}
+
+enrichment.log.df <- t(do.call(rbind.data.frame, enrichment.subset.list.log))
+colnames(enrichment.log.df) <- section
+rownames(enrichment.log.df) <- names(enrichment.subset.list.log[[1]])
+enrichment.log.df <- as.data.frame(enrichment.log.df)
+
+```
+####Correlation plots between 10% and 100% poly-T, mtrbcpnoncod filter, log scale
+```{r, fig.height=5, fig.width=5}
+#qqplot_filename <- paste("~/Arabidopsis/revision/221123_L1_corrplot_100vs45Fungi_log10_filt.pdf")
+#pdf(file = qqplot_filename, useDingbats = F)
+ggplot(enrichment.log.df, aes(x=L1A2_p10, y=L1C1_ITS)) +
+  geom_point(size=0.5, shape=23) +
+  geom_smooth(method="lm", se=TRUE, fullrange=FALSE, level=0.95, linetype="dashed",color="darkred") + 
+  stat_cor( method="pearson", label.x =0, label.y=6 )
+#dev.off()
+
+#qqplot_filename <- paste("~/Arabidopsis/revision/221123_L2_corrplot_100vs45Fungi_log10_filt.pdf")
+#pdf(file = qqplot_filename, useDingbats = F)
+ggplot(enrichment.log.df, aes(x=L2B1_p10, y=L2D2_ITS)) +
+  geom_point(size=0.5, shape=23) +
+  geom_smooth(method="lm", se=TRUE, fullrange=FALSE, level=0.95, linetype="dashed",color="darkred") + 
+  stat_cor( method="pearson", label.x =0, label.y=6 )
+#dev.off()
+
+#qqplot_filename <- paste("~/Arabidopsis/revision/221123_L3_corrplot_100vs45Fungi_log10_filt.pdf")
+#pdf(file = qqplot_filename, useDingbats = F)
+ggplot(enrichment.log.df, aes(x=L3C2_p10, y=L3A2_ITS)) +
+  geom_point(size=0.5, shape=23) +
+  geom_smooth(method="lm", se=TRUE, fullrange=FALSE, level=0.95, linetype="dashed",color="darkred") + 
+  stat_cor( method="pearson", label.x =0, label.y=6 )
+#dev.off()
+```
+```{r}
+
+pairwise_cor2 <- rcorr(as.matrix(enrichment.log.df))
+pairwise_cor2$P[is.na(pairwise_cor2$P)] <- 0
+
+  #Leaf 1
+
+
+  
+  #qqplot_filename <- paste("~/Arabidopsis/revision/221123_L1_fungi_100vs45_log10_filtered.pdf")
+  #pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(1,4,7,10),c(1,4,7,10)], 
+                 lower.col = "black", 
+                 number.cex = 1,
+                 p.mat = pairwise_cor2$P[c(1,4,7,10),c(1,4,7,10)], 
+                 #sig.level = c(.001, .01, .05), 
+                 #insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  #dev.off()
+  
+  #Leaf 2
+  
+
+  
+  #qqplot_filename <- paste("~/Arabidopsis/revision/221123_L2_fungi_100vs45_log10_filtered.pdf")
+  #pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(2,5,8,11),c(2,5,8,11)], 
+                 lower.col = "black", 
+                 number.cex = 1, 
+                 p.mat = pairwise_cor2$P[c(2,5,8,11),c(2,5,8,11)], 
+                 #sig.level = c(.001, .01, .05), 
+                 #insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  #dev.off()
+  
+  #Leaf 3
+  
+ 
+  
+  #qqplot_filename <- paste("~/Arabidopsis/revision/221123_L3_fungi_100vs45_log10_filtered.pdf")
+  #pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(3,6,9,12),c(3,6,9,12)], 
+                 lower.col = "black", 
+                 number.cex = 1,
+                 p.mat = pairwise_cor2$P[c(3,6,9,12),c(3,6,9,12)], 
+                 #sig.level = c(.001, .01, .05), 
+                 #insig = "label_sig", 
+                 pch.col = "black", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  #dev.off()
+```  
+
+###Fungal top 500 taxa
+```{r, fig.height=5, fig.width=5}
+num_of_top_taxa_qqplot <- 500
+top_taxa <- unique(summary_df_fun$Taxa[summary_df_fun$Rank=="Genus"][order(summary_df_fun$Counts[summary_df_fun$Rank=="Genus"], decreasing = T)])[1:num_of_top_taxa_qqplot]
+
+mtrbcpnoncod.enrichment.subset_top500 <- SubsetSTData(mtrbcpnoncod.enrichment.subset, features = top_taxa)
+
+```
+
+####Fungal correlation plots before filtering
+```{r, fig.height=15, fig.width=15}
+DefaultAssay(mtrbcpnoncod.enrichment.subset_top500) <- "ITS"
+#Subset created object
+subset.enrichment.section <- c()
+for (i in 1:length(infoTable$section)){
+#print(section_id[[i]])
+subset.enrichment.section[[i]] <- SubsetSTData(mtrbcpnoncod.enrichment.subset_top500, spots = colnames(mtrbcpnoncod.enrichment.subset_top500)[mtrbcpnoncod.enrichment.subset_top500$section == infoTable$section[i]])
+}
+
+#log transformed
+enrichment.subset.list.log <- c()
+for (i in 1:length(section)){
+  enrichment.subset.list.log[[i]]<-log10(rowSums(subset.enrichment.section[[i]]@assays$ITS@counts)+1)
+}
+
+enrichment.log.df <- t(do.call(rbind.data.frame, enrichment.subset.list.log))
+colnames(enrichment.log.df) <- section
+rownames(enrichment.log.df) <- names(enrichment.subset.list.log[[1]])
+enrichment.log.df <- as.data.frame(enrichment.log.df)
+
+```
+
+```{r}
+
+pairwise_cor2 <- rcorr(as.matrix(enrichment.log.df))
+pairwise_cor2$P[is.na(pairwise_cor2$P)] <- 0
+
+  #Leaf 1
+
+  #qqplot_filename <- paste("~/Arabidopsis/revision/221123_L1_fungi_100vs45_log10_filtered.pdf")
+  #pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(1,4,7,10),c(1,4,7,10)], 
+                 lower.col = "black", 
+                 number.cex = 1,
+                 p.mat = pairwise_cor2$P[c(1,4,7,10),c(1,4,7,10)], 
+                 sig.level = c(.001, .01, .05), 
+                 insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  #dev.off()
+  
+  #Leaf 2
+  
+
+  
+  #qqplot_filename <- paste("~/Arabidopsis/revision/221123_L2_fungi_100vs45_log10_filtered.pdf")
+  #pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(2,5,8,11),c(2,5,8,11)], 
+                 lower.col = "black", 
+                 number.cex = 1, 
+                 p.mat = pairwise_cor2$P[c(2,5,8,11),c(2,5,8,11)], 
+                 sig.level = c(.001, .01, .05), 
+                 insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  #dev.off()
+  
+  #Leaf 3
+  
+ 
+  
+  #qqplot_filename <- paste("~/Arabidopsis/revision/221123_L3_fungi_100vs45_log10_filtered.pdf")
+  #pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(3,6,9,12),c(3,6,9,12)], 
+                 lower.col = "black", 
+                 number.cex = 1,
+                 p.mat = pairwise_cor2$P[c(3,6,9,12),c(3,6,9,12)], 
+                 sig.level = c(.001, .01, .05), 
+                 insig = "label_sig", 
+                 pch.col = "black", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  #dev.off()
+```  
+###Fungal top 20 taxa
+```{r, fig.height=5, fig.width=5}
+num_of_top_taxa_qqplot <- 20
+top_taxa <- unique(summary_df_fun$Taxa[summary_df_fun$Rank=="Genus"][order(summary_df_fun$Counts[summary_df_fun$Rank=="Genus"], decreasing = T)])[1:num_of_top_taxa_qqplot]
+
+mtrbcpnoncod.enrichment.subset_top20 <- SubsetSTData(mtrbcpnoncod.enrichment.subset, features = top_taxa)
+
+```
+
+####Fungal correlation plots before filtering
+```{r, fig.height=15, fig.width=15}
+DefaultAssay(mtrbcpnoncod.enrichment.subset_top20) <- "ITS"
+#Subset created object
+subset.enrichment.section <- c()
+for (i in 1:length(infoTable$section)){
+#print(section_id[[i]])
+subset.enrichment.section[[i]] <- SubsetSTData(mtrbcpnoncod.enrichment.subset_top20, spots = colnames(mtrbcpnoncod.enrichment.subset_top20)[mtrbcpnoncod.enrichment.subset_top20$section == infoTable$section[i]])
+}
+
+#Raw counts
+enrichment.genes.list <- c()
+for (i in 1:length(section)){
+  enrichment.genes.list[[i]] <- rowSums(subset.enrichment.section[[i]]@assays$ITS@counts)
+}
+
+enrichment.df <- t(do.call(rbind.data.frame, enrichment.genes.list))
+colnames(enrichment.df) <- section
+rownames(enrichment.df) <- names(enrichment.genes.list[[1]])
+enrichment.df <- as.data.frame(enrichment.df)
+
+#log transformed
+enrichment.subset.list.log <- c()
+for (i in 1:length(section)){
+  enrichment.subset.list.log[[i]]<-log10(rowSums(subset.enrichment.section[[i]]@assays$ITS@counts)+1)
+}
+
+enrichment.log.df <- t(do.call(rbind.data.frame, enrichment.subset.list.log))
+colnames(enrichment.log.df) <- section
+rownames(enrichment.log.df) <- names(enrichment.subset.list.log[[1]])
+enrichment.log.df <- as.data.frame(enrichment.log.df)
+
+```
+
+```{r}
+
+pairwise_cor2 <- rcorr(as.matrix(enrichment.log.df))
+pairwise_cor2$P[is.na(pairwise_cor2$P)] <- 0
+
+  #Leaf 1
+
+
+  
+  #qqplot_filename <- paste("~/Arabidopsis/revision/221123_L1_fungi_100vs45_log10_filtered.pdf")
+  #pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(1,4,7,10),c(1,4,7,10)], 
+                 lower.col = "black", 
+                 number.cex = 1,
+                 p.mat = pairwise_cor2$P[c(1,4,7,10),c(1,4,7,10)], 
+                 #sig.level = c(.001, .01, .05), 
+                 #insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  #dev.off()
+  
+  #Leaf 2
+  
+
+  
+  #qqplot_filename <- paste("~/Arabidopsis/revision/221123_L2_fungi_100vs45_log10_filtered.pdf")
+  #pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(2,5,8,11),c(2,5,8,11)], 
+                 lower.col = "black", 
+                 number.cex = 1, 
+                 p.mat = pairwise_cor2$P[c(2,5,8,11),c(2,5,8,11)], 
+                 #sig.level = c(.001, .01, .05), 
+                 #insig = "label_sig", 
+                 pch.col = "white", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  #dev.off()
+  
+  #Leaf 3
+  
+ 
+  
+  #qqplot_filename <- paste("~/Arabidopsis/revision/221123_L3_fungi_100vs45_log10_filtered.pdf")
+  #pdf(file = qqplot_filename, useDingbats = F)
+  corrplot.mixed(pairwise_cor2$r[c(3,6,9,12),c(3,6,9,12)], 
+                 lower.col = "black", 
+                 number.cex = 1,
+                 p.mat = pairwise_cor2$P[c(3,6,9,12),c(3,6,9,12)], 
+                 #sig.level = c(.001, .01, .05), 
+                 #insig = "label_sig", 
+                 pch.col = "black", 
+                 upper.col = brewer.pal(n = 5, name = 'PRGn')	)
+  #dev.off()
+```  
+  
+#Save files: 
+```{r}
+saveRDS(mtrbcpnoncod.enrichment.subset, "~/Arabidopsis/enrichment-EXP9_10/230710_enrichment_host_bac_its.rds")
+
+```
+

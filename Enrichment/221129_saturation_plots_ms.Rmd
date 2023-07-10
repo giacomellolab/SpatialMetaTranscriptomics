@@ -1,0 +1,78 @@
+---
+title: "saturation_plots"
+author: "Sami Saarenpää"
+date: '2022-11-29'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyr)
+saturation_points <- c(2000, 3718, 8389, 21085, 55598, 149413, 404428,1097633, 2981957)
+L1_100pT <- c(2000, 3717, 8380, 21037, 55280, 147153, 388131, 985713, 2285617)
+L1_10pT <- c(2000, 3710, 8377, 21006, 55111, 145936, 380360, 936392, 2028653)
+L2_100pT <- c(2000, 3716, 8384, 21055, 55421, 148189, 395158, 1032617, 2545305)
+L2_10pT <- c(1999, 3716, 8380, 21019, 55123, 146067, 380912, 939844, 2043966)
+L3_100pT <- c(2000, 3717, 8380, 21029, 55254, 146781, 385800, 970482, 2196492)
+L3_10pT <- c(2000, 3716, 8378, 21041, 55242, 147084, 386943, 976985, 2231103)
+leaf <- c("L1", "L1", "L2", "L2", "L3", "L3", "x")
+probe <- c("100pT", "10pT", "100pT", "10pT", "100pT", "10pT", "x")
+
+uniqueMolecules <- data.frame(L1_100pT, L1_10pT, L2_100pT, L2_10pT, L3_100pT, L3_10pT, saturation_points)
+
+uniqueMol_long<- uniqueMolecules %>% pivot_longer(cols=c(L1_100pT, L1_10pT, L2_100pT, L2_10pT, L3_100pT, L3_10pT),
+                    names_to='Sample',
+                    values_to='molecules')
+uniqueMol_long$Sample2 <- uniqueMol_long$Sample
+uniqueMol_long <- uniqueMol_long %>% separate(Sample2, c('Leaf', 'Probe'))
+uniqueMol_long$log <- log10(uniqueMol_long$molecules)
+
+
+#pdf(file = "~/Arabidopsis/revision/221129_saturationPlot_uniqueMolecules_enrichmentExperiment.pdf", useDingbats = F,width = 10, height = 6)
+ggplot(uniqueMol_long, aes(x = factor(saturation_points), y = molecules, group=Sample)) +
+  geom_point(aes(color=Probe)) + 
+  geom_line(aes(color=Probe)) +
+  facet_wrap(~Leaf, nrow = 1) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+#dev.off()
+```
+
+```{r cars}
+saturation_points <- c(2000, 3718, 8389, 21085, 55598, 149413, 404428,1097633, 2981957)
+L1_100pT <- c(828, 1345, 2355, 4315, 7258, 10723, 13852, 15994, 17491)
+L1_10pT <- c(495, 754, 1430, 2636, 4783, 7917, 11202, 14002, 15809)
+L2_100pT <- c(946, 1583, 2723, 4745, 7843, 11276, 14299, 16389, 17892)
+L2_10pT <- c(544, 903, 1714, 3211, 5762, 9367, 12674, 15243, 16822)
+L3_100pT <- c(922, 1488, 2569, 4493, 7524, 11037, 14073, 16175, 17519)
+L3_10pT <- c(511, 838, 1525, 2894, 5288, 8624, 11988, 14674, 16473)
+leaf <- c("L1", "L1", "L2", "L2", "L3", "L3", "x")
+probe <- c("100pT", "10pT", "100pT", "10pT", "100pT", "10pT", "x")
+
+uniqueMolecules <- data.frame(L1_100pT, L1_10pT, L2_100pT, L2_10pT, L3_100pT, L3_10pT, saturation_points)
+
+uniqueMol_long<- uniqueMolecules %>% pivot_longer(cols=c(L1_100pT, L1_10pT, L2_100pT, L2_10pT, L3_100pT, L3_10pT),
+                    names_to='Sample',
+                    values_to='molecules')
+uniqueMol_long$Sample2 <- uniqueMol_long$Sample
+uniqueMol_long <- uniqueMol_long %>% separate(Sample2, c('Leaf', 'Probe'))
+uniqueMol_long$log <- log10(uniqueMol_long$molecules)
+
+#pdf(file = "~/Arabidopsis/revision/221130_saturationPlot_uniqueGenes_enrichmentExperiment.pdf", useDingbats = F,width = 10, height = 6)
+ggplot(uniqueMol_long, aes(x = factor(saturation_points), y = molecules, group=Sample)) +
+  geom_point(aes(color=Probe)) + 
+  geom_line(aes(color=Probe)) +
+  facet_wrap(~Leaf, nrow = 1) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+  #ylim(0, 22000)
+#dev.off()
+```
+
+```{r}
+writeLines(capture.output(sessionInfo()), "~/Arabidopsis/revision/sessionInfo_enrichmentAnalysis_230710.txt")
+
+```
+
