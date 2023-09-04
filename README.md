@@ -1,4 +1,6 @@
-# SpatialMetaTranscriptomics
+# Spatial metaTranscriptomics
+
+Code related to a SmT publication. 
 
 ## [Reads taxonomic assignment](https://github.com/giacomellolab/SpatialMetaTranscriptomics/blob/main/tax_assignment/readme.md)
 1. Drep reads
